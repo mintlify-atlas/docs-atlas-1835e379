@@ -1,0 +1,118 @@
+---
+title: 'API Introduction'
+description: 'Overview of the Grupo Mecsa CMS API'
+---
+
+## Overview
+
+The Grupo Mecsa CMS API provides a comprehensive interface for managing content, users, roles, and permissions within the CMS platform. The API is built on top of Supabase and provides both REST endpoints and a PHP SDK for seamless integration.
+
+## Base URL
+
+The API is hosted at:
+
+```
+https://awhuzekjpoapamijlvua.supabase.co
+```
+
+All REST API endpoints use the base path `/rest/v1/` for data operations and `/auth/v1/` for authentication operations.
+
+## Architecture
+
+The CMS API uses a multi-schema architecture:
+
+- **cms schema**: Default schema for CMS-specific data (roles, permissions, content)
+- **public schema**: Schema for employee data and system access
+- **auth schema**: Supabase authentication (managed automatically)
+
+### Schema Selection
+
+You can specify the schema using HTTP headers:
+
+```http
+Accept-Profile: cms
+Content-Profile: cms
+```
+
+For public schema operations:
+
+```http
+Accept-Profile: public
+Content-Profile: public
+```
+
+## Making API Requests
+
+### Using the PHP SDK
+
+The recommended way to interact with the API is through the Supabase PHP class:
+
+```php
+require_once 'supabase.php';
+
+$supabase = new Supabase();
+
+// Authenticate
+$auth = $supabase->login('user@example.com', 'password');
+$token = $auth['access_token'];
+
+// Fetch data
+$data = $supabase->getData('Empleados', $token);
+```
+
+### Direct HTTP Requests
+
+You can also make direct HTTP requests using cURL or any HTTP client:
+
+```bash
+curl -X GET "https://awhuzekjpoapamijlvua.supabase.co/rest/v1/Empleados?select=*" \
+  -H "apikey: YOUR_API_KEY" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Accept-Profile: public"
+```
+
+## HTTP Methods
+
+The API supports standard HTTP methods:
+
+- **GET**: Retrieve data
+- **POST**: Create new records
+- **PATCH**: Update existing records
+- **PUT**: Replace records or update user data
+- **DELETE**: Remove records
+
+## Response Format
+
+All API responses are in JSON format:
+
+```json
+{
+  "success": true,
+  "data": [...],
+  "error": null
+}
+```
+
+Error responses include details:
+
+```json
+{
+  "success": false,
+  "error": "Error message",
+  "code": "error_code"
+}
+```
+
+## Environment Detection
+
+The API automatically detects the environment:
+
+- **Production**: Detected when `HTTP_HOST` contains `grupomecsa.net`
+- **Development**: Local configuration files are loaded (e.g., `local.supabase.php`)
+
+## Next Steps
+
+- [Authentication](/api/authentication) - Learn how to authenticate with the API
+- [Admin Roles Endpoint](/api/endpoints/admin-roles) - Manage user roles and permissions
+- [Employee Role Endpoint](/api/endpoints/employee-role) - Update employee role assignments
+- [Supabase Class Reference](/api/classes/supabase) - Complete PHP SDK documentation

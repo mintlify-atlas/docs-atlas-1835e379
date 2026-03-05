@@ -1,0 +1,620 @@
+---
+title: 'Deployment Guide'
+description: 'Deploy Grupo Mecsa CMS to development and production environments'
+icon: 'rocket'
+---
+
+## Overview
+
+This guide covers deploying Grupo Mecsa CMS from local development (XAMPP/Apache) to production servers, including environment configuration and server setup.
+
+## System Requirements
+
+### Minimum Requirements
+
+| Component | Version | Notes |
+|-----------|---------|-------|
+| **PHP** | 7.4+ | 8.0+ recommended |
+| **Apache** | 2.4+ | With mod_rewrite enabled |
+| **Composer** | 2.0+ | For dependency management |
+| **cURL** | Latest | Required for Supabase API calls |
+| **MySQL/PostgreSQL** | N/A | Uses Supabase (cloud-hosted) |
+
+<Info>
+The CMS uses Supabase as a cloud database, so you don't need a local database server
+</Info>
+
+### PHP Extensions
+
+Ensure these extensions are enabled in `php.ini`:
+
+```ini
+extension=curl
+extension=json
+extension=mbstring
+extension=openssl
+extension=fileinfo
+```
+
+### Apache Modules
+
+Required Apache modules:
+
+```apache
+LoadModule rewrite_module modules/mod_rewrite.so
+LoadModule headers_module modules/mod_headers.so
+LoadModule ssl_module modules/mod_ssl.so
+```
+
+## Development Setup (XAMPP)
+
+<Steps>
+  <Step title="Install XAMPP">
+    Download and install [XAMPP](https://www.apachefriends.org/) for your operating system
+    
+    - Windows: Use installer
+    - macOS: Use DMG package
+    - Linux: Use run file or package manager
+  </Step>
+
+  <Step title="Clone Repository">
+    Clone the CMS to your XAMPP `htdocs` directory:
+    
+    ```bash
+    cd C:/xampp/htdocs  # Windows
+    # or
+    cd /opt/lampp/htdocs  # Linux
+    
+    git clone <repository-url> GrupoMecsaCMS
+    cd GrupoMecsaCMS
+    ```
+  </Step>
+
+  <Step title="Install Dependencies">
+    Install PHP dependencies with Composer:
+    
+    ```bash
+    composer install
+    ```
+    
+    <Tip>
+    If you don't have Composer installed, download it from [getcomposer.org](https://getcomposer.org/)
+    </Tip>
+  </Step>
+
+  <Step title="Configure Supabase">
+    Create a local configuration file:
+    
+    ```bash
+    # Create local.supabase.php in the root directory
+    touch local.supabase.php
+    ```
+    
+    Add your development credentials:
+    
+    ```php local.supabase.php
+    <?php
+    $supabase_url = 'https://your-dev-project.supabase.co';
+    $supabase_key = 'your-dev-anon-key';
+    $supabase_service_role = 'your-dev-service-role-key';
+    ?>
+    ```
+    
+    <Warning>
+    Add `local.supabase.php` to `.gitignore` to prevent committing credentials
+    </Warning>
+  </Step>
+
+  <Step title="Start Apache">
+    Start Apache from the XAMPP control panel:
+    
+    - Open XAMPP Control Panel
+    - Click "Start" next to Apache
+    - Verify it's running (port 80 or 443)
+  </Step>
+
+  <Step title="Access the Application">
+    Open your browser and navigate to:
+    
+    ```
+    http://localhost/GrupoMecsaCMS/login.php
+    ```
+    
+    You should see the login page.
+  </Step>
+</Steps>
+
+## Production Deployment
+
+### Pre-Deployment Checklist
+
+<Warning>
+Complete all items before deploying to production
+</Warning>
+
+- [ ] All code tested in development environment
+- [ ] Production Supabase project created and configured
+- [ ] Environment variables prepared
+- [ ] SSL certificate obtained
+- [ ] Domain DNS configured
+- [ ] Backup plan established
+- [ ] Security audit completed
+- [ ] `.gitignore` configured properly
+
+### Deployment Steps
+
+<Steps>
+  <Step title="Prepare Production Server">
+    Install required software on your production server:
+    
+    **Ubuntu/Debian:**
+    ```bash
+    sudo apt update
+    sudo apt install apache2 php php-curl php-json php-mbstring php-xml
+    sudo apt install composer
+    ```
+    
+    **CentOS/RHEL:**
+    ```bash
+    sudo yum install httpd php php-curl php-json php-mbstring php-xml
+    sudo yum install composer
+    ```
+  </Step>
+
+  <Step title="Clone Repository to Server">
+    SSH into your server and clone the repository:
+    
+    ```bash
+    cd /var/www
+    sudo git clone <repository-url> grupomecsa-cms
+    cd grupomecsa-cms
+    
+    # Install dependencies
+    sudo composer install --no-dev --optimize-autoloader
+    ```
+    
+    <Tip>
+    The `--no-dev` flag excludes development dependencies for a leaner production deployment
+    </Tip>
+  </Step>
+
+  <Step title="Configure Environment Variables">
+    Set production environment variables:
+    
+    **Option 1: Apache Virtual Host**
+    
+    Create `/etc/apache2/sites-available/grupomecsa.conf`:
+    
+    ```apache
+    <VirtualHost *:443>
+        ServerName cms.grupomecsa.net
+        DocumentRoot /var/www/grupomecsa-cms
+        
+        # Set environment variables
+        SetEnv SUPABASE_URL "https://prod.supabase.co"
+        SetEnv SUPABASE_KEY "prod-anon-key"
+        SetEnv SUPABASE_SERVICE_ROLE "prod-service-role-key"
+        
+        <Directory /var/www/grupomecsa-cms>
+            Options Indexes FollowSymLinks
+            AllowOverride All
+            Require all granted
+        </Directory>
+        
+        # SSL Configuration
+        SSLEngine on
+        SSLCertificateFile /path/to/cert.pem
+        SSLCertificateKeyFile /path/to/key.pem
+        SSLCertificateChainFile /path/to/chain.pem
+        
+        # Security Headers
+        Header always set X-Frame-Options "SAMEORIGIN"
+        Header always set X-Content-Type-Options "nosniff"
+        Header always set X-XSS-Protection "1; mode=block"
+        Header always set Strict-Transport-Security "max-age=31536000"
+    </VirtualHost>
+    ```
+    
+    **Option 2: .htaccess File**
+    
+    Create/edit `.htaccess` in the root directory:
+    
+    ```apache
+    SetEnv SUPABASE_URL "https://prod.supabase.co"
+    SetEnv SUPABASE_KEY "prod-anon-key"
+    SetEnv SUPABASE_SERVICE_ROLE "prod-service-role-key"
+    
+    # Enable rewrite engine
+    RewriteEngine On
+    
+    # Force HTTPS
+    RewriteCond %{HTTPS} off
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+    ```
+    
+    **Option 3: Server Environment**
+    
+    Add to `/etc/environment` or server startup scripts:
+    
+    ```bash
+    export SUPABASE_URL="https://prod.supabase.co"
+    export SUPABASE_KEY="prod-anon-key"
+    export SUPABASE_SERVICE_ROLE="prod-service-role-key"
+    ```
+  </Step>
+
+  <Step title="Configure Apache Virtual Host">
+    Enable the site and required modules:
+    
+    ```bash
+    # Enable site
+    sudo a2ensite grupomecsa
+    
+    # Enable modules
+    sudo a2enmod rewrite
+    sudo a2enmod ssl
+    sudo a2enmod headers
+    
+    # Test configuration
+    sudo apache2ctl configtest
+    
+    # Restart Apache
+    sudo systemctl restart apache2
+    ```
+  </Step>
+
+  <Step title="Set File Permissions">
+    Configure proper ownership and permissions:
+    
+    ```bash
+    # Set owner to Apache user
+    sudo chown -R www-data:www-data /var/www/grupomecsa-cms
+    
+    # Set directory permissions
+    sudo find /var/www/grupomecsa-cms -type d -exec chmod 755 {} \;
+    
+    # Set file permissions
+    sudo find /var/www/grupomecsa-cms -type f -exec chmod 644 {} \;
+    
+    # Make specific directories writable (if needed for logs/uploads)
+    sudo chmod -R 775 /var/www/grupomecsa-cms/logs
+    ```
+  </Step>
+
+  <Step title="Configure SSL Certificate">
+    Install SSL certificate using Let's Encrypt:
+    
+    ```bash
+    # Install Certbot
+    sudo apt install certbot python3-certbot-apache
+    
+    # Obtain certificate
+    sudo certbot --apache -d cms.grupomecsa.net
+    
+    # Auto-renewal is configured automatically
+    sudo certbot renew --dry-run
+    ```
+    
+    <Info>
+    Let's Encrypt certificates are free and auto-renew every 90 days
+    </Info>
+  </Step>
+
+  <Step title="Verify Deployment">
+    Test the production deployment:
+    
+    1. Access your domain: `https://cms.grupomecsa.net`
+    2. Verify SSL certificate is valid
+    3. Test login functionality
+    4. Check all modules load correctly
+    5. Review browser console for errors
+    6. Test CRUD operations
+  </Step>
+</Steps>
+
+## Environment Configuration
+
+### Environment Detection
+
+<Info>
+The CMS automatically detects the environment based on the hostname
+</Info>
+
+Production is detected when hostname contains `grupomecsa.net`:
+
+```php
+$is_production = (isset($_SERVER['HTTP_HOST']) && 
+                  strpos($_SERVER['HTTP_HOST'], 'grupomecsa.net') !== false);
+```
+
+**Production Hostnames (auto-detected):**
+- `cms.grupomecsa.net`
+- `www.grupomecsa.net`
+- `grupomecsa.net`
+
+**Development Hostnames:**
+- `localhost`
+- `127.0.0.1`
+- Any custom local domain
+
+### Configuration Priority
+
+The system loads configuration in this order:
+
+1. **Environment Variables** (highest priority)
+   ```bash
+   SUPABASE_URL
+   SUPABASE_KEY
+   SUPABASE_SERVICE_ROLE
+   ```
+
+2. **Local Configuration File** (development only)
+   ```
+   local.supabase.php
+   ```
+
+3. **Default Values** (fallback)
+   ```php
+   'https://awhuzekjpoapamijlvua.supabase.co'
+   ```
+
+<Warning>
+Never rely on default values in production - always set environment variables
+</Warning>
+
+## Server Optimization
+
+### PHP Configuration
+
+Recommended `php.ini` settings for production:
+
+```ini
+; Performance
+memory_limit = 256M
+max_execution_time = 60
+upload_max_filesize = 20M
+post_max_size = 25M
+
+; Security
+expose_php = Off
+display_errors = Off
+log_errors = On
+error_log = /var/log/php/error.log
+
+; Sessions
+session.cookie_httponly = 1
+session.cookie_secure = 1
+session.cookie_samesite = Strict
+session.use_strict_mode = 1
+
+; Opcache (recommended)
+opcache.enable = 1
+opcache.memory_consumption = 128
+opcache.interned_strings_buffer = 8
+opcache.max_accelerated_files = 4000
+opcache.revalidate_freq = 60
+```
+
+### Apache Configuration
+
+Optimize Apache for better performance:
+
+```apache
+# Enable compression
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css
+    AddOutputFilterByType DEFLATE application/javascript application/json
+</IfModule>
+
+# Browser caching
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType image/jpg "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+</IfModule>
+
+# Security headers
+Header set X-Frame-Options "SAMEORIGIN"
+Header set X-Content-Type-Options "nosniff"
+Header set X-XSS-Protection "1; mode=block"
+Header set Referrer-Policy "strict-origin-when-cross-origin"
+```
+
+## Monitoring and Maintenance
+
+### Server Monitoring
+
+Set up monitoring for:
+
+- **Uptime:** Use tools like UptimeRobot or Pingdom
+- **Server Resources:** Monitor CPU, RAM, disk usage
+- **Error Logs:** Regularly check Apache and PHP error logs
+- **Security Logs:** Review `security_audit.log` for unauthorized access attempts
+
+### Log Locations
+
+```bash
+# Apache access log
+/var/log/apache2/access.log
+
+# Apache error log
+/var/log/apache2/error.log
+
+# PHP error log
+/var/log/php/error.log
+
+# CMS security audit log
+/var/www/grupomecsa-cms/security_audit.log
+```
+
+### Regular Maintenance Tasks
+
+<Steps>
+  <Step title="Weekly Tasks">
+    - Review error logs for issues
+    - Check security audit log for unauthorized access
+    - Verify backups completed successfully
+    - Monitor disk space usage
+  </Step>
+
+  <Step title="Monthly Tasks">
+    - Update Composer dependencies:
+      ```bash
+      composer update
+      ```
+    - Review and rotate logs
+    - Test backup restoration
+    - Security audit of user accounts
+  </Step>
+
+  <Step title="Quarterly Tasks">
+    - Update PHP and Apache to latest stable versions
+    - Review and update SSL certificates (if not using auto-renewal)
+    - Performance optimization review
+    - Security penetration testing
+  </Step>
+</Steps>
+
+## Backup Strategy
+
+### What to Back Up
+
+<Warning>
+Regular backups are critical for disaster recovery
+</Warning>
+
+1. **Application Files**
+   ```bash
+   /var/www/grupomecsa-cms/
+   ```
+
+2. **Configuration Files**
+   ```bash
+   /etc/apache2/sites-available/grupomecsa.conf
+   /etc/php/*/apache2/php.ini
+   ```
+
+3. **Supabase Data**
+   - Use Supabase's built-in backup features
+   - Export database regularly via SQL dumps
+
+4. **SSL Certificates**
+   ```bash
+   /etc/letsencrypt/
+   ```
+
+### Automated Backup Script
+
+```bash backup.sh
+#!/bin/bash
+
+# Configuration
+BACKUP_DIR="/backups/grupomecsa-cms"
+APP_DIR="/var/www/grupomecsa-cms"
+DATE=$(date +%Y%m%d_%H%M%S)
+
+# Create backup directory
+mkdir -p "$BACKUP_DIR"
+
+# Backup application files
+tar -czf "$BACKUP_DIR/app_$DATE.tar.gz" "$APP_DIR"
+
+# Backup Apache config
+cp /etc/apache2/sites-available/grupomecsa.conf "$BACKUP_DIR/apache_$DATE.conf"
+
+# Keep only last 30 days of backups
+find "$BACKUP_DIR" -name "*.tar.gz" -mtime +30 -delete
+find "$BACKUP_DIR" -name "*.conf" -mtime +30 -delete
+
+echo "Backup completed: $DATE"
+```
+
+Schedule with cron:
+
+```bash
+# Edit crontab
+sudo crontab -e
+
+# Add daily backup at 2 AM
+0 2 * * * /usr/local/bin/backup.sh
+```
+
+## Troubleshooting
+
+### Common Issues
+
+#### 500 Internal Server Error
+
+1. Check Apache error log:
+   ```bash
+   sudo tail -f /var/log/apache2/error.log
+   ```
+
+2. Verify file permissions:
+   ```bash
+   sudo chmod -R 755 /var/www/grupomecsa-cms
+   ```
+
+3. Check PHP syntax:
+   ```bash
+   php -l /var/www/grupomecsa-cms/index.php
+   ```
+
+#### Cannot Connect to Supabase
+
+1. Verify environment variables are set:
+   ```bash
+   echo $SUPABASE_URL
+   ```
+
+2. Test cURL to Supabase:
+   ```bash
+   curl -I https://your-project.supabase.co
+   ```
+
+3. Check firewall rules allow outbound HTTPS
+
+#### SSL Certificate Errors
+
+1. Verify certificate is valid:
+   ```bash
+   sudo certbot certificates
+   ```
+
+2. Test SSL configuration:
+   ```bash
+   openssl s_client -connect cms.grupomecsa.net:443
+   ```
+
+3. Force certificate renewal:
+   ```bash
+   sudo certbot renew --force-renewal
+   ```
+
+#### Session Issues
+
+1. Check session directory permissions:
+   ```bash
+   ls -la /var/lib/php/sessions
+   ```
+
+2. Verify session settings in php.ini:
+   ```ini
+   session.save_path = "/var/lib/php/sessions"
+   session.gc_maxlifetime = 1440
+   ```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Supabase Configuration" icon="database" href="/config/supabase">
+    Set up database credentials and connection
+  </Card>
+  <Card title="Security Guide" icon="shield" href="/config/security">
+    Implement security best practices
+  </Card>
+</CardGroup>

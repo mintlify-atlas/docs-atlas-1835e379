@@ -1,0 +1,467 @@
+---
+title: Job Application Management
+description: Review, filter, and manage candidate applications with interview scheduling and status tracking.
+---
+
+## Overview
+
+The Job Application Management module provides a comprehensive interface to review candidates who have applied for your job vacancies. You can view applicant details, download CVs, review custom question responses, schedule interviews, and manage application statuses throughout the recruitment workflow.
+
+<Info>
+This module is accessed per vacancy. Each vacancy has its own application list at `postulaciones.php?vacante_id={id}`.
+</Info>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Candidate Overview" icon="users">
+    View all applicants with contact information, application date, and current status.
+  </Card>
+  <Card title="CV Downloads" icon="file-pdf">
+    Direct access to candidate CVs and resumes stored in the system.
+  </Card>
+  <Card title="Custom Responses" icon="clipboard-list">
+    Review answers to vacancy-specific screening questions.
+  </Card>
+  <Card title="Interview Scheduling" icon="calendar-check">
+    Schedule interviews with automatic email notifications to candidates.
+  </Card>
+  <Card title="Status Management" icon="tasks">
+    Update application status (pending, interview, rejected) with email notifications.
+  </Card>
+  <Card title="Application Filtering" icon="filter">
+    Filter candidates by application status for efficient workflow management.
+  </Card>
+</CardGroup>
+
+## Accessing Applications
+
+From the Vacancies page, click the **"Ver Postulaciones"** button (users icon) for any vacancy. This takes you to the applications page with the format:
+
+```
+postulaciones.php?vacante_id={vacancy_uuid}
+```
+
+The page header displays:
+- Vacancy title
+- Department and location
+- "Volver a Vacantes" link to return to the vacancy list
+
+## Application List View
+
+### Table Columns
+
+| Column | Information Displayed |
+|--------|----------------------|
+| **Fecha** | Application submission date (format: dd/mm/YYYY) |
+| **Candidato** | Full name and LinkedIn profile link (if provided) |
+| **Contacto** | Email address and phone number |
+| **CV / Doc.** | "Ver CV" button linking to uploaded resume |
+| **Estado** | Status badge (pendiente, entrevista, rechazado) |
+| **Acciones** | Action buttons based on current status |
+| **Cita Entrevista** | Scheduled interview date/time (if applicable) |
+
+### Candidate Information Display
+
+<Accordion title="Contact Details">
+  **Email:** Primary email address for communication
+  
+  **Phone:** Contact phone number
+  
+  **LinkedIn:** If provided, displays as a clickable link with LinkedIn icon
+</Accordion>
+
+<Accordion title="CV Access">
+  The "Ver CV" button opens the candidate's resume in a new tab. The URL format is stored in the `cv_url` field of the database.
+</Accordion>
+
+## Application Status System
+
+Applications progress through three primary states:
+
+<Steps>
+  <Step title="Pendiente (Pending)">
+    Initial status when an application is submitted. Candidates in this state can be scheduled for interviews or rejected.
+  </Step>
+  
+  <Step title="Entrevista (Interview)">
+    Application has been reviewed and the candidate is scheduled for or has completed an interview. Interview date/time is displayed in the "Cita Entrevista" column.
+  </Step>
+  
+  <Step title="Rechazado (Rejected)">
+    Application has been declined. Candidate receives an automated rejection email (if configured).
+  </Step>
+</Steps>
+
+### Status Badges
+
+- **pendiente** - Default badge color (typically yellow/orange)
+- **entrevista** - Success badge color (typically green)
+- **rechazado** - Danger badge color (typically red)
+
+## Filtering Applications
+
+Use the filter panel at the top of the application list to narrow down candidates by status:
+
+<Steps>
+  <Step title="Select Status Filter">
+    Use the "Estado de Postulación" dropdown to choose:
+    - Todos los estados (default - shows all)
+    - Pendiente
+    - Entrevista
+    - Rechazado
+  </Step>
+  
+  <Step title="Auto-Submit">
+    The form automatically submits when you change the dropdown selection via `onchange="this.form.submit()"`.
+  </Step>
+  
+  <Step title="Clear Filter">
+    If a filter is active, a "Limpiar Filtro" button appears to reset the view to all applications.
+  </Step>
+</Steps>
+
+<Info>
+The candidate count badge updates dynamically based on the active filter, showing "X Candidatos" for the current view.
+</Info>
+
+## Application Actions
+
+### View Custom Question Responses
+
+<Steps>
+  <Step title="Click View Responses Button">
+    Click the clipboard icon ("Ver Respuestas") in the Actions column.
+  </Step>
+  
+  <Step title="Modal Opens">
+    A modal window displays "Respuestas de [Candidate Name]" with a loading spinner.
+  </Step>
+  
+  <Step title="Responses Load">
+    The system fetches responses via `api/get_respuestas.php?postulacion_id=[id]` and displays:
+    - Question number badge
+    - Question text from `preguntas_vacantes` table
+    - Candidate's answer
+  </Step>
+</Steps>
+
+<Accordion title="If No Custom Questions">
+  If the vacancy has no custom questions configured or the candidate didn't answer them, an informational alert displays:
+  
+  "Este candidato no respondió preguntas personalizadas o no hay preguntas configuradas para esta vacante."
+</Accordion>
+
+### Schedule Interview
+
+Available for applications with **status = "pendiente"**.
+
+<Steps>
+  <Step title="Click Interview Button">
+    Click the calendar-check icon ("Citar a Entrevista") in the Actions column.
+  </Step>
+  
+  <Step title="Fill Interview Details">
+    In the modal:
+    - **Fecha y Hora** (required) - Use the datetime-local input to select interview date/time
+    - **Mensaje Personalizado** (optional) - Add custom instructions like "Traer identificación" or "Preguntar por RRHH"
+  </Step>
+  
+  <Step title="Submit">
+    Click **"Programar y Enviar Email"** to:
+    - Update application status to "entrevista"
+    - Store the interview date in `fecha_entrevista` field
+    - Send automated email notification to candidate
+  </Step>
+</Steps>
+
+<Note>
+The system processes the request via `functions/gestionarPostulacion.php` with action = "entrevista" and displays a SweetAlert2 confirmation with email send status.
+</Note>
+
+### Reject Application
+
+Available for applications with **status = "pendiente"**.
+
+<Steps>
+  <Step title="Click Reject Button">
+    Click the user-xmark icon ("Rechazar") in the Actions column.
+  </Step>
+  
+  <Step title="Confirm Rejection">
+    The modal displays:
+    - Confirmation message: "¿Estás seguro de rechazar la postulación de [Candidate Name]?"
+    - Info note: "Se le enviará un correo automático de agradecimiento informando que no continuará en el proceso."
+  </Step>
+  
+  <Step title="Add Optional Comment">
+    Optionally add a "Motivo o comentario adicional" (internal note, not sent to candidate).
+  </Step>
+  
+  <Step title="Confirm">
+    Click **"Confirmar y Enviar Email"** to:
+    - Update application status to "rechazado"
+    - Send automated rejection email to candidate
+  </Step>
+</Steps>
+
+<Warning>
+Rejecting an application cannot be undone. The candidate will receive an email notification. Ensure you have selected the correct application before confirming.
+</Warning>
+
+## Data Structure
+
+### Database Table: `postulaciones`
+
+```json
+{
+  "id": "uuid",
+  "vacante_id": "uuid (foreign key to vacantes)",
+  "nombre_completo": "string",
+  "email": "string",
+  "telefono": "string",
+  "linkedin_url": "string (nullable)",
+  "cv_url": "string",
+  "estado": "enum (pendiente, entrevista, rechazado)",
+  "fecha_entrevista": "timestamp (nullable)",
+  "created_at": "timestamp"
+}
+```
+
+### Related Table: `respuestas_postulacion`
+
+Stores answers to custom screening questions:
+
+```json
+{
+  "id": "uuid",
+  "postulacion_id": "uuid (foreign key)",
+  "pregunta_id": "uuid (foreign key to preguntas_vacantes)",
+  "respuesta": "text",
+  "preguntas_vacantes": {
+    "pregunta": "string"
+  }
+}
+```
+
+## Email Notifications
+
+The system sends automated emails for two key actions:
+
+<CardGroup cols={2}>
+  <Card title="Interview Invitation" icon="envelope">
+    Sent when status changes to "entrevista". Includes:
+    - Interview date and time
+    - Custom message from recruiter
+    - Company contact information
+  </Card>
+  <Card title="Rejection Notice" icon="envelope-open">
+    Sent when status changes to "rechazado". Includes:
+    - Thank you message
+    - Polite closure
+    - (Optional internal comment is NOT sent)
+  </Card>
+</CardGroup>
+
+<Info>
+Email send status is returned in the API response and displayed in the success message: "Email: {status}".
+</Info>
+
+## Role-Based Access
+
+<Info>
+Access to the Application Management module requires an active session with a valid authentication token. Users without a valid `$_SESSION['token']` will be redirected to the login page.
+</Info>
+
+### Required Permissions
+- **View Applications** - HR recruiters, managers
+- **View CVs** - HR recruiters, managers
+- **View Custom Responses** - HR recruiters, managers
+- **Schedule Interviews** - HR recruiters, managers
+- **Reject Applications** - HR managers (recommended restriction)
+- **Access without vacante_id** - Redirects to vacancies page
+
+## User Workflows
+
+### Initial Application Review
+
+<Steps>
+  <Step title="Access Application List">
+    From the Vacancies page, click "Ver Postulaciones" for the position you want to review.
+  </Step>
+  
+  <Step title="Review Candidate Information">
+    Scan the table for candidate names, application dates, and contact information.
+  </Step>
+  
+  <Step title="Download and Review CVs">
+    Click "Ver CV" to open and evaluate each candidate's resume.
+  </Step>
+  
+  <Step title="Check Custom Responses">
+    Click the clipboard icon to review answers to screening questions.
+  </Step>
+  
+  <Step title="Shortlist Candidates">
+    Based on CV and responses, decide which candidates to interview or reject.
+  </Step>
+</Steps>
+
+### Scheduling Interview Rounds
+
+<Steps>
+  <Step title="Filter by Pending Status">
+    Use the status filter to show only "Pendiente" applications.
+  </Step>
+  
+  <Step title="Select Qualified Candidates">
+    Review the list and identify candidates who meet the job requirements.
+  </Step>
+  
+  <Step title="Schedule Interviews">
+    For each selected candidate:
+    - Click the "Citar a Entrevista" button
+    - Choose an available date/time
+    - Add any special instructions
+    - Submit to send the invitation
+  </Step>
+  
+  <Step title="Switch to Interview Filter">
+    Change the filter to "Entrevista" to see all scheduled interviews and their dates.
+  </Step>
+</Steps>
+
+### Managing Application Pipeline
+
+<Steps>
+  <Step title="Monitor All Statuses">
+    Use the "Todos los estados" filter to see the full pipeline.
+  </Step>
+  
+  <Step title="Review Interview Dates">
+    Check the "Cita Entrevista" column to see upcoming interviews.
+  </Step>
+  
+  <Step title="Process Rejections">
+    Filter by "Pendiente" and reject unqualified candidates to keep the pipeline clean.
+  </Step>
+  
+  <Step title="Track Progress">
+    Use the candidate count badge to monitor application volume and pipeline flow.
+  </Step>
+</Steps>
+
+### Handling High Application Volume
+
+<Steps>
+  <Step title="Filter by Status">
+    Focus on one status at a time (e.g., review all pending applications first).
+  </Step>
+  
+  <Step title="Batch Review CVs">
+    Open multiple CV tabs and review them in sequence.
+  </Step>
+  
+  <Step title="Use Custom Questions Strategically">
+    Review custom question responses first to quickly screen out unqualified candidates before opening CVs.
+  </Step>
+  
+  <Step title="Batch Schedule Interviews">
+    Schedule multiple interviews in one session by keeping the datetime picker and instructions consistent.
+  </Step>
+</Steps>
+
+## Technical Details
+
+### API Endpoints
+
+- **GET** `/postulaciones?vacante_id=eq.{id}&order=created_at.desc` - Fetch all applications for a vacancy
+- **GET** `/postulaciones?vacante_id=eq.{id}&estado=eq.{status}&order=created_at.desc` - Fetch filtered applications
+- **GET** `/api/get_respuestas.php?postulacion_id={id}` - Fetch custom question responses
+- **POST** `/functions/gestionarPostulacion.php` - Update application status and send emails
+
+### JavaScript Libraries
+
+- **Bootstrap 5.3.3** - Modal functionality and UI components
+- **SweetAlert2** - Success/error message displays
+- **Font Awesome** - Icons throughout the interface
+
+### Form Handling
+
+Both interview and rejection forms use async fetch:
+
+```javascript
+const formData = new FormData(form);
+const resp = await fetch('functions/gestionarPostulacion.php', {
+    method: 'POST',
+    body: formData
+});
+const data = await resp.json();
+```
+
+Expected response format:
+```json
+{
+  "success": true,
+  "message": "Estado actualizado correctamente",
+  "email_status": "Enviado" // or error message
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Prompt Responses" icon="clock">
+    Review and respond to applications within 48-72 hours to maintain candidate engagement.
+  </Card>
+  <Card title="Organized Workflow" icon="tasks">
+    Process applications in batches by status for efficiency and consistency.
+  </Card>
+  <Card title="Clear Communication" icon="comments">
+    Use the custom message field when scheduling interviews to set clear expectations.
+  </Card>
+  <Card title="Professional Rejections" icon="user-check">
+    Always send rejection emails promptly and professionally to maintain company reputation.
+  </Card>
+  <Card title="Interview Preparation" icon="clipboard-check">
+    Review custom question responses before interviews to prepare targeted discussion points.
+  </Card>
+  <Card title="Data Privacy" icon="lock">
+    Handle candidate CVs and personal information according to data protection regulations.
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<Accordion title="No Applications Showing">
+  **Possible causes:**
+  - Vacancy has no applications yet ("Aún no hay postulaciones para esta vacante")
+  - Active filter is excluding results (click "Limpiar Filtro")
+  - Database connection error (check error message)
+  
+  **Solution:** Check if the vacancy is active and published on your careers page.
+</Accordion>
+
+<Accordion title="Custom Responses Not Loading">
+  **Possible causes:**
+  - No custom questions configured for this vacancy
+  - Candidate didn't answer the questions
+  - API endpoint error (`api/get_respuestas.php`)
+  
+  **Solution:** Verify that questions are configured in the "Gestionar Preguntas" section for this vacancy.
+</Accordion>
+
+<Accordion title="Email Not Sending">
+  **Possible causes:**
+  - Email service configuration issue
+  - Invalid candidate email address
+  - Server email limits reached
+  
+  **Solution:** Check the `email_status` field in the response. Contact your system administrator if emails consistently fail.
+</Accordion>
+
+<Accordion title="Can't Schedule Interview">
+  **Possible cause:** Application status is not "pendiente".
+  
+  **Solution:** Interview scheduling is only available for pending applications. If an application was previously rejected or already scheduled, those actions are not reversible from this interface.
+</Accordion>

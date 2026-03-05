@@ -1,0 +1,222 @@
+---
+title: Dashboard
+description: Overview and analytics for your Grupo Mecsa CMS instance
+icon: gauge
+---
+
+## Overview
+
+The Dashboard is your central hub for monitoring all activity and statistics across the Grupo Mecsa CMS. It provides real-time insights into content, clients, projects, contacts, and HR operations.
+
+<Note>
+  The dashboard automatically adapts based on your user role, showing only the metrics and sections you have permission to view.
+</Note>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Real-time Statistics" icon="chart-line">
+    Track counts for content, clients, projects, contacts, vacancies, and employees
+  </Card>
+  <Card title="Role-Based Views" icon="user-shield">
+    See only the data relevant to your role (Admin, RRHH, Proyecto, Comercial)
+  </Card>
+  <Card title="Recent Activity" icon="clock-rotate-left">
+    View the latest contacts, projects, and job vacancies
+  </Card>
+  <Card title="Quick Actions" icon="bolt">
+    Access frequently-used modules directly from the dashboard
+  </Card>
+</CardGroup>
+
+## Dashboard Statistics
+
+The dashboard fetches and displays counts from multiple tables:
+
+```php dashboard.php
+// Helper function to get record counts
+function get_count($table) {
+    $res = supabase_request('GET', "$table?select=id");
+    return ($res['http'] >= 200 && $res['http'] < 300 && is_array($res['json'])) ? count($res['json']) : 0;
+}
+
+// Fetch totals
+$total_contenidos = get_count('contenido');
+$total_clientes = get_count('clientes');
+$total_proyectos = get_count('Proyectos');
+$total_contactos = get_count('contactos');
+$total_vacantes = get_count('vacantes');
+$total_empleados = get_count('empleados');
+```
+
+## Displayed Metrics
+
+### For All Users
+
+| Metric | Description | Table |
+|--------|-------------|-------|
+| **Content** | Total published content items | `contenido` |
+| **Clients** | Total registered clients | `clientes` |
+| **Projects** | Total active and completed projects | `Proyectos` |
+| **Contacts** | Total contact form submissions | `contactos` |
+
+### For HR Users
+
+| Metric | Description | Table |
+|--------|-------------|-------|
+| **Vacancies** | Open job positions | `vacantes` |
+| **Employees** | Current employee count | `empleados` |
+
+## Recent Activity Feeds
+
+The dashboard displays recent records from key tables:
+
+```php dashboard.php
+// Helper function to get recent records
+function get_records($table, $select = '*', $order = 'created_at.desc', $limit = 5) {
+    $res = supabase_request('GET', "$table?select=$select&order=$order&limit=$limit");
+    return ($res['http'] >= 200 && $res['http'] < 300 && is_array($res['json'])) ? $res['json'] : [];
+}
+
+// Recent activity
+$ultimos_contactos = get_records('contactos');
+$ultimos_proyectos = get_records('Proyectos', 'id,nombre,cliente,created_at');
+$ultimas_vacantes  = get_records('vacantes', 'titulo,created_at');
+```
+
+### Recent Contacts
+
+Displays the 5 most recent contact form submissions with:
+- Contact name and email
+- Submission date
+- Quick action buttons
+
+### Recent Projects
+
+Shows the 5 latest projects with:
+- Project name
+- Associated client
+- Creation date
+- Link to project details
+
+### Recent Vacancies (HR Only)
+
+Lists the 5 newest job postings with:
+- Position title
+- Creation date
+- Status (Active/Inactive)
+
+## Role-Based Access
+
+The dashboard respects role permissions set in `resolve_user.php`:
+
+```php dashboard.php
+require_once __DIR__ . '/../functions/resolve_user.php';
+
+// Available role variables:
+// $is_admin - Full system access
+// $is_rrhh - HR module access
+// $is_proyecto - Project module access
+```
+
+### Admin Users
+- See all metrics and statistics
+- Access all recent activity feeds
+- Can navigate to any module
+
+### HR Users
+- See HR-specific metrics (vacancies, employees)
+- Access employee and recruitment data
+- Limited access to client/project data
+
+### Project Users
+- Focus on projects and client relationships
+- Limited HR access
+
+## User Interface
+
+### Welcome Card
+
+The dashboard greets users by name and displays:
+- Current time
+- Role-specific mini statistics
+- Quick access to relevant modules
+
+```php dashboard.php
+$userName = $_SESSION['user_name'] ?? $_SESSION['name'] ?? 'Administrador';
+$firstName = explode(' ', $userName)[0];
+```
+
+### Statistics Grid
+
+Metrics are displayed in a responsive grid layout:
+- **Large screens**: 4 columns
+- **Tablets**: 2 columns
+- **Mobile**: 1 column
+
+## Quick Actions
+
+From the dashboard, users can quickly navigate to:
+
+<CardGroup cols={3}>
+  <Card title="Content" icon="file-lines" href="/modules/content">
+    Manage website content
+  </Card>
+  <Card title="Clients" icon="users" href="/modules/clients">
+    View client directory
+  </Card>
+  <Card title="Projects" icon="diagram-project" href="/modules/projects">
+    Track project status
+  </Card>
+  <Card title="Contacts" icon="envelope" href="/modules/contacts">
+    Review inquiries
+  </Card>
+  <Card title="Employees" icon="user-tie" href="/hr/employees">
+    HR management
+  </Card>
+  <Card title="Email Builder" icon="hammer" href="/email/overview">
+    Create campaigns
+  </Card>
+</CardGroup>
+
+## Technical Details
+
+### Data Fetching
+
+All dashboard data is fetched on page load using Supabase REST API:
+
+- **Authentication**: Requires valid session token
+- **Schema**: Queries `cms` schema by default
+- **Performance**: Lightweight queries using `select=id` for counts
+- **Ordering**: Recent records sorted by `created_at.desc`
+
+### Session Requirements
+
+```php dashboard.php
+session_start();
+if (!isset($_SESSION['token'])) {
+    header("Location: ../login.php");
+    exit;
+}
+```
+
+## Best Practices
+
+<Tip>
+  Check the dashboard regularly to stay informed about recent activity and system health.
+</Tip>
+
+<Info>
+  The dashboard is read-only. Use the quick action links to manage records in their respective modules.
+</Info>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Clients" icon="users" href="/modules/clients">
+    Learn about client management
+  </Card>
+  <Card title="Projects" icon="diagram-project" href="/modules/projects">
+    Explore project tracking
+  </Card>
+</CardGroup>

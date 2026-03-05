@@ -1,0 +1,337 @@
+---
+title: Contact Management
+description: Manage contact form submissions and inquiries from your website
+icon: envelope
+---
+
+## Overview
+
+The Contacts module stores and manages contact form submissions from your website. Track inquiries with country, phone, and email information for follow-up and customer service.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Contact Submissions" icon="inbox">
+    Receive and store contact form data
+  </Card>
+  <Card title="Country Validation" icon="globe">
+    Validate contacts against country database
+  </Card>
+  <Card title="Pagination" icon="list">
+    Browse contacts with configurable page sizes
+  </Card>
+  <Card title="CRUD Operations" icon="database">
+    View, create, update, and delete contact records
+  </Card>
+</CardGroup>
+
+## Contact Record Structure
+
+Each contact submission includes:
+
+- **Country** (`pais`): Contact's country
+- **Phone** (`telefono`): Contact phone number
+- **Email** (`correo`): Contact email address
+- **Created At**: Submission timestamp
+
+```json
+{
+  "id": 1,
+  "pais": "Mexico",
+  "telefono": "+52 55 1234 5678",
+  "correo": "contact@example.com",
+  "created_at": "2024-01-20T15:30:00Z"
+}
+```
+
+## Creating a Contact
+
+<Steps>
+  <Step title="Access Contacts Module">
+    Navigate to **Contacts** from the sidebar menu.
+  </Step>
+  
+  <Step title="Click 'New Contact'">
+    Click the "Crear Contacto" button.
+  </Step>
+  
+  <Step title="Fill Contact Information">
+    Required fields:
+    - **Country** (`pais`): Select from dropdown
+    - **Phone** (`telefono`): Contact phone number
+    - **Email** (`correo`): Valid email address
+  </Step>
+  
+  <Step title="Submit Form">
+    The system validates the country and creates the contact record.
+  </Step>
+</Steps>
+
+## Contact Creation Process
+
+```php contactos.php
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['crearContacto'])) {
+    $pais = trim($_POST['pais'] ?? '');
+    $telefono = trim($_POST['telefono'] ?? '');
+    $correo = trim($_POST['correo'] ?? '');
+    
+    if ($pais === '' || $telefono === '' || $correo === '') {
+        die("<script>alert('❌ Completa todos los campos'); window.history.back();</script>");
+    }
+    
+    // Validate country exists in Paises table
+    $resP = supabase_get('Paises?select=pais');
+    $listaPaises = [];
+    if (isset($resP['json']) && is_array($resP['json'])) {
+        $listaPaises = array_column($resP['json'], 'pais');
+    } else {
+        $decodedP = json_decode($resP['body'], true);
+        if (is_array($decodedP)) $listaPaises = array_column($decodedP, 'pais');
+    }
+    
+    if (!in_array($pais, $listaPaises)) {
+        die("<script>alert('❌ País no válido'); window.history.back();</script>");
+    }
+    
+    $new = [
+        'pais' => $pais,
+        'telefono' => $telefono,
+        'correo' => $correo,
+        'created_at' => date('Y-m-d H:i:s')
+    ];
+    
+    $res_insert = supabase_request('POST', $table_contactos, $new, ["Prefer: return=representation"]);
+    $code = $res_insert['http'];
+    $resp = $res_insert['body'];
+    
+    if ($code >= 200 && $code < 300) {
+        echo "<script>alert('✅ Contacto creado correctamente'); window.location.href='contactos.php';</script>";
+    } else {
+        echo "<script>alert('❌ Error al crear contacto: $resp'); window.history.back();</script>";
+    }
+}
+```
+
+## Country Validation
+
+Contacts must specify a valid country from the `Paises` table:
+
+```php contactos.php
+// Fetch available countries
+$paises = fetchFromSupabase('Paises?select=pais');
+```
+
+### Countries Table
+
+**Table Name**: `Paises`
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | integer | Primary key |
+| `pais` | text | Country name |
+
+<Info>
+  The system validates that the submitted country exists in the `Paises` table before accepting the contact.
+</Info>
+
+## Fetching Contacts
+
+Contacts are retrieved with pagination:
+
+```php contactos.php
+$table_contactos = "contactos";
+
+// Pagination
+$page = intval($_GET['page'] ?? 1);
+$perPage = intval($_GET['rowsPerPage'] ?? 10);
+$offset = ($page - 1) * $perPage;
+
+$path = "$table_contactos?select=*&order=created_at.desc&limit=$perPage&offset=$offset";
+$contactos = fetchFromSupabase($path);
+
+$totalPath = "$table_contactos?select=id";
+$totalRecords = count(fetchFromSupabase($totalPath));
+$totalPages = $perPage > 0 ? ceil($totalRecords / $perPage) : 1;
+```
+
+### Pagination Configuration
+
+- **Default rows per page**: 10
+- **Options**: 5, 10, 20, 50
+- **URL parameters**: `?page=2&rowsPerPage=20`
+
+## Contact Listing
+
+Contacts are displayed in a table with:
+
+- **Country**: Contact's country
+- **Phone**: Formatted phone number
+- **Email**: Email address (clickable mailto link)
+- **Received**: Submission date and time
+- **Actions**: Edit and delete buttons
+
+### Default Sorting
+
+Contacts are sorted by creation date in descending order (newest first):
+
+```php
+order=created_at.desc
+```
+
+## Viewing Contact Details
+
+Click on a contact row to view full details:
+
+- All contact information
+- Submission timestamp
+- Related inquiries (if tracked)
+- Follow-up history (if enabled)
+
+## Editing Contacts
+
+<Steps>
+  <Step title="Select Contact">
+    Click the edit button next to the contact.
+  </Step>
+  
+  <Step title="Modify Information">
+    Update any of the fields:
+    - Country
+    - Phone number
+    - Email address
+  </Step>
+  
+  <Step title="Save Changes">
+    Submit the form to update the database.
+  </Step>
+</Steps>
+
+## Deleting Contacts
+
+<Warning>
+  Deleting a contact is permanent and cannot be undone.
+</Warning>
+
+To delete a contact:
+
+1. Click the delete button
+2. Confirm the deletion
+3. Contact record is permanently removed
+
+## Database Table
+
+**Table Name**: `contactos`
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | integer | Auto-incrementing primary key |
+| `pais` | text | Country name |
+| `telefono` | text | Phone number |
+| `correo` | text | Email address |
+| `created_at` | timestamptz | Submission timestamp |
+
+## API Endpoints
+
+The Contacts module uses Supabase REST API:
+
+- **GET** `/rest/v1/contactos` - List all contacts
+- **GET** `/rest/v1/contactos?select=*&order=created_at.desc&limit=10&offset=0` - Paginated contacts
+- **POST** `/rest/v1/contactos` - Create new contact
+- **PATCH** `/rest/v1/contactos?id=eq.{id}` - Update contact
+- **DELETE** `/rest/v1/contactos?id=eq.{id}` - Delete contact
+
+## Dashboard Integration
+
+Contact statistics appear on the [Dashboard](/modules/dashboard):
+
+```php dashboard.php
+$total_contactos = get_count('contactos');
+$ultimos_contactos = get_records('contactos');
+```
+
+- Total contact count
+- Recent contact submissions (last 5)
+
+## Email Integration
+
+Contact emails can be exported for email marketing campaigns:
+
+<Tip>
+  Export contact emails to use with the [Email Builder](/email/overview) for newsletters and campaigns.
+</Tip>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Timely Follow-up" icon="clock">
+    Respond to new contacts within 24 hours
+  </Card>
+  <Card title="Data Privacy" icon="shield">
+    Comply with GDPR and data protection regulations
+  </Card>
+  <Card title="Regular Review" icon="check">
+    Audit contacts monthly to remove duplicates
+  </Card>
+  <Card title="Categorization" icon="tags">
+    Tag contacts by inquiry type for better organization
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+### Invalid Country Error
+
+**Problem**: "País no válido" error when creating contact
+
+**Solution**: The submitted country must exist in the `Paises` table. Check the countries dropdown or add the country to the `Paises` table first.
+
+### Missing Required Fields
+
+**Problem**: "Completa todos los campos" error
+
+**Solution**: Ensure all three required fields (country, phone, email) are filled before submitting.
+
+### Duplicate Contacts
+
+**Problem**: Same contact submitted multiple times
+
+**Solution**: Consider implementing duplicate detection based on email address. Add a unique constraint on the `correo` column:
+
+```sql
+ALTER TABLE contactos ADD CONSTRAINT unique_email UNIQUE (correo);
+```
+
+## Form Integration
+
+To integrate the contact form on your website:
+
+```html
+<form action="/api/contactos.php" method="POST">
+  <label>Country:
+    <select name="pais" required>
+      <!-- Populate from Paises table -->
+    </select>
+  </label>
+  
+  <label>Phone:
+    <input type="tel" name="telefono" required>
+  </label>
+  
+  <label>Email:
+    <input type="email" name="correo" required>
+  </label>
+  
+  <button type="submit" name="crearContacto">Submit</button>
+</form>
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Dashboard" icon="gauge" href="/modules/dashboard">
+    View contact statistics
+  </Card>
+  <Card title="Email Builder" icon="envelope" href="/email/overview">
+    Send campaigns to contacts
+  </Card>
+</CardGroup>

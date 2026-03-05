@@ -1,0 +1,351 @@
+---
+title: Job Vacancy Management
+description: Create, publish, and manage job openings for your organization's recruitment process.
+---
+
+## Overview
+
+The Job Vacancy Management module enables you to create and maintain job postings, manage their active/inactive status, and link them to custom application questions. Each vacancy includes comprehensive details like job title, department, location, contract type, salary range, description, and requirements.
+
+<Info>
+Job vacancies can be made active or inactive, allowing you to control which positions are currently accepting applications.
+</Info>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Vacancy Publishing" icon="briefcase">
+    Create detailed job postings with titles, descriptions, requirements, and compensation details.
+  </Card>
+  <Card title="Status Control" icon="toggle-on">
+    Toggle vacancies between active and inactive states to control application intake.
+  </Card>
+  <Card title="Application Tracking" icon="users">
+    View all candidate applications directly from the vacancy listing.
+  </Card>
+  <Card title="Custom Questions" icon="clipboard-question">
+    Manage vacancy-specific application questions for targeted candidate screening.
+  </Card>
+</CardGroup>
+
+## CRUD Operations
+
+### Create New Vacancy
+
+<Steps>
+  <Step title="Open the New Vacancy Modal">
+    Click the **"Añadir Vacante"** button at the top of the vacancy list.
+  </Step>
+  
+  <Step title="Fill in Vacancy Details">
+    Complete the comprehensive job posting form with the following information:
+    
+    **Basic Information:**
+    - **Título del Puesto** (required) - Job title
+    - **Departamento** - Department or business unit
+    - **Ubicación** - Job location (city, office, or "Remoto")
+    
+    **Employment Details:**
+    - **Tipo de Contrato** - Select from:
+      - Tiempo Completo
+      - Medio Tiempo
+      - Por Servicios Provisionales
+      - Contrato Temporal
+    - **Salario (Rango/Monto)** - Salary range or specific amount
+    
+    **Job Description:**
+    - **Descripción** - Detailed job description (4 rows)
+    - **Requisitos** - Job requirements and qualifications (4 rows)
+    
+    **Status:**
+    - **Vacante Activa** - Toggle to set initial status (checked = active by default)
+  </Step>
+  
+  <Step title="Publish the Vacancy">
+    Click **"Publicar"** to create the job posting. The form submits to `functions/crearVacante.php`.
+  </Step>
+</Steps>
+
+<Note>
+New vacancies are created with **Vacante Activa** checked by default, meaning they will immediately accept applications upon creation.
+</Note>
+
+### Read/View Vacancies
+
+The vacancies table displays:
+- **ID** - Unique identifier (first 8 characters + "..." for UUIDs)
+- **Título** - Job title
+- **Departamento** - Department name
+- **Ubicación** - Job location
+- **Estado** - Badge showing "Activa" (published/green) or "Inactiva" (draft/gray)
+- **Acciones** - Multiple action buttons
+
+#### Action Buttons
+
+<CardGroup cols={2}>
+  <Card title="Ver Postulaciones" icon="users">
+    Links to `postulaciones.php?vacante_id={id}` to view all candidate applications for this vacancy.
+  </Card>
+  <Card title="Gestionar Preguntas" icon="clipboard-question">
+    Links to `preguntas_vacante.php?vacante_id={id}` to configure custom application questions.
+  </Card>
+  <Card title="Editar" icon="pen">
+    Opens the edit modal to modify vacancy details.
+  </Card>
+  <Card title="Eliminar" icon="trash">
+    Permanently deletes the vacancy after confirmation.
+  </Card>
+</CardGroup>
+
+### Update Vacancy
+
+<Steps>
+  <Step title="Click the Edit Button">
+    In the vacancies table, click the edit icon (pen) in the Actions column.
+  </Step>
+  
+  <Step title="Modify Vacancy Information">
+    The edit modal pre-populates with current data. Update any field:
+    - Job title
+    - Department
+    - Location
+    - Contract type (dropdown)
+    - Salary range
+    - Job description
+    - Requirements
+    - Active status (checkbox)
+  </Step>
+  
+  <Step title="Save Changes">
+    Click **"Guardar Cambios"** to update the vacancy. The form submits to `functions/editarVacante.php`.
+  </Step>
+</Steps>
+
+<Info>
+Changing a vacancy from active to inactive will prevent new applications but will **not** affect existing applications.
+</Info>
+
+### Delete Vacancy
+
+<Steps>
+  <Step title="Click the Delete Button">
+    Click the trash icon in the Actions column for the vacancy you want to remove.
+  </Step>
+  
+  <Step title="Confirm Deletion">
+    A JavaScript confirmation dialog appears: "¿Estás seguro de que deseas eliminar esta vacante? Esta acción no se puede deshacer."
+  </Step>
+  
+  <Step title="Vacancy Removed">
+    Upon confirmation, the system calls `functions/eliminarVacante.php?id={id}` to permanently delete the vacancy.
+  </Step>
+</Steps>
+
+<Warning>
+**Before deleting a vacancy:**
+- Consider inactivating it instead if you want to preserve historical data
+- Ensure all associated application data is backed up if needed
+- Deletion is permanent and cannot be undone
+</Warning>
+
+## Form Fields and Validation
+
+| Field Name | Type | Required | Options/Format | Database Column |
+|------------|------|----------|----------------|----------------|
+| `titulo` | Text | Yes | Free text | `titulo` |
+| `departamento` | Text | No | Free text | `departamento` |
+| `ubicacion` | Text | No | Free text | `ubicacion` |
+| `tipo_contrato` | Select | No | Tiempo Completo, Medio Tiempo, Por Servicios Provisionales, Contrato Temporal | `tipo_contrato` |
+| `salario` | Text | No | Free text (range or amount) | `salario` |
+| `descripcion` | Textarea | No | Multi-line text | `descripcion` |
+| `requisitos` | Textarea | No | Multi-line text | `requisitos` |
+| `activa` | Checkbox | No | Boolean (checked/unchecked) | `activa` |
+
+## Data Structure
+
+### Database Table: `vacantes`
+
+```json
+{
+  "id": "uuid (auto-generated)",
+  "titulo": "string",
+  "departamento": "string",
+  "ubicacion": "string",
+  "tipo_contrato": "string",
+  "salario": "string",
+  "descripcion": "text",
+  "requisitos": "text",
+  "activa": "boolean",
+  "created_at": "timestamp"
+}
+```
+
+### Example Record
+
+```json
+{
+  "id": "a3f8b2c1-4d5e-6f7a-8b9c-0d1e2f3a4b5c",
+  "titulo": "Ingeniero de Software Senior",
+  "departamento": "Tecnología",
+  "ubicacion": "Ciudad de México",
+  "tipo_contrato": "Tiempo Completo",
+  "salario": "$80,000 - $100,000 MXN/mes",
+  "descripcion": "Buscamos un ingeniero de software senior...",
+  "requisitos": "5+ años de experiencia en desarrollo web...",
+  "activa": true,
+  "created_at": "2024-03-15 09:00:00"
+}
+```
+
+## Role-Based Access
+
+<Info>
+Access to the Vacancy Management module requires an active session with a valid authentication token. Users without a valid `$_SESSION['token']` will be redirected to the login page.
+</Info>
+
+### Required Permissions
+- **View Vacancies** - Authenticated HR users
+- **Create Vacancy** - HR managers with recruitment permissions
+- **Edit Vacancy** - HR managers
+- **Delete Vacancy** - HR administrators (use with caution)
+- **Manage Questions** - HR managers
+- **View Applications** - HR recruiters and managers
+
+## Integration with Other Modules
+
+<CardGroup cols={2}>
+  <Card title="Job Applications" icon="file-user">
+    Each vacancy links to its application list at `postulaciones.php?vacante_id={id}`.
+  </Card>
+  <Card title="Custom Questions" icon="question-circle">
+    Configure vacancy-specific questions at `preguntas_vacante.php?vacante_id={id}`.
+  </Card>
+  <Card title="Departments" icon="sitemap">
+    While not enforced via foreign key, vacancies reference department names for organizational clarity.
+  </Card>
+</CardGroup>
+
+## Technical Details
+
+### API Endpoints
+
+- **GET** `/vacantes?order=created_at.desc` - Fetch all vacancies (sorted by newest first)
+- **POST** `/functions/crearVacante.php` - Create new vacancy
+- **POST** `/functions/editarVacante.php` - Update vacancy
+- **GET** `/functions/eliminarVacante.php?id={id}` - Delete vacancy
+
+### JavaScript Files
+
+- `main.js` - Core CMS functionality
+- Inline JavaScript - Edit modal population and delete confirmation handling
+
+### Edit Modal Population
+
+The edit modal uses data attributes to populate form fields:
+
+```javascript
+document.getElementById('edit-id').value = this.dataset.id;
+document.getElementById('edit-titulo').value = this.dataset.titulo;
+document.getElementById('edit-descripcion').value = this.dataset.descripcion;
+document.getElementById('edit-departamento').value = this.dataset.departamento;
+document.getElementById('edit-ubicacion').value = this.dataset.ubicacion;
+document.getElementById('edit-tipo_contrato').value = this.dataset.tipo_contrato;
+document.getElementById('edit-salario').value = this.dataset.salario;
+document.getElementById('edit-requisitos').value = this.dataset.requisitos;
+document.getElementById('edit-activa').checked = this.dataset.activa === '1';
+```
+
+## User Workflows
+
+### Publishing a New Job Opening
+
+<Steps>
+  <Step title="Prepare Job Details">
+    Gather all necessary information: job title, department, location, contract type, salary range, detailed description, and qualification requirements.
+  </Step>
+  
+  <Step title="Create the Vacancy">
+    Click "Añadir Vacante" and complete the form with all job details. Ensure "Vacante Activa" is checked.
+  </Step>
+  
+  <Step title="Configure Custom Questions (Optional)">
+    After creating the vacancy, click the "Gestionar Preguntas" icon to add screening questions specific to this position.
+  </Step>
+  
+  <Step title="Monitor Applications">
+    Click the "Ver Postulaciones" icon to view and manage incoming candidate applications.
+  </Step>
+</Steps>
+
+### Closing a Filled Position
+
+<Steps>
+  <Step title="Deactivate the Vacancy">
+    Click the edit icon for the filled position and uncheck "Vacante Activa". This stops new applications while preserving the vacancy record.
+  </Step>
+  
+  <Step title="Review Final Applications">
+    Use "Ver Postulaciones" to review any final candidates who applied before deactivation.
+  </Step>
+  
+  <Step title="Archive or Delete (Optional)">
+    If the vacancy record is no longer needed, you can delete it. Otherwise, keeping it inactive preserves historical hiring data.
+  </Step>
+</Steps>
+
+### Managing Seasonal or Recurring Positions
+
+<Steps>
+  <Step title="Create Once">
+    Create the vacancy with all details for the seasonal position.
+  </Step>
+  
+  <Step title="Toggle Active Status">
+    When the hiring season begins, set the vacancy to "Activa". When applications are closed, set it to "Inactiva".
+  </Step>
+  
+  <Step title="Reactivate Next Season">
+    Edit the vacancy and reactivate it when the position opens again, updating salary or requirements if needed.
+  </Step>
+</Steps>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Clear Job Titles" icon="heading">
+    Use descriptive, industry-standard job titles that candidates will search for.
+  </Card>
+  <Card title="Detailed Descriptions" icon="align-left">
+    Provide comprehensive job descriptions including responsibilities, day-to-day activities, and team structure.
+  </Card>
+  <Card title="Transparent Compensation" icon="dollar-sign">
+    Include salary ranges to attract qualified candidates and reduce time waste on both sides.
+  </Card>
+  <Card title="Specific Requirements" icon="list-check">
+    List must-have qualifications separately from nice-to-have skills to help candidates self-assess fit.
+  </Card>
+  <Card title="Status Management" icon="toggle-on">
+    Promptly deactivate filled or cancelled positions to maintain an accurate, trustworthy careers page.
+  </Card>
+  <Card title="Regular Updates" icon="refresh">
+    Review and update vacancy details periodically to ensure accuracy and competitiveness.
+  </Card>
+</CardGroup>
+
+## Badge Status Indicators
+
+<Accordion title="Active Vacancy Badge">
+  **Class:** `badge-published` (green)
+  
+  **Display:** "Activa"
+  
+  **Meaning:** The vacancy is currently accepting applications. It will appear on public job boards (if published externally).
+</Accordion>
+
+<Accordion title="Inactive Vacancy Badge">
+  **Class:** `badge-draft` (gray)
+  
+  **Display:** "Inactiva"
+  
+  **Meaning:** The vacancy is not accepting new applications. Existing applications remain accessible.
+</Accordion>

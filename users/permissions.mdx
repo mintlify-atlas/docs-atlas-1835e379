@@ -1,0 +1,444 @@
+---
+title: Permissions System
+description: Learn how the role-based permissions system controls access to CMS modules
+icon: shield-check
+---
+
+## Overview
+
+Grupo Mecsa CMS uses a granular permissions system that maps user roles to specific views and modules. This allows administrators to control exactly which parts of the CMS each role can access.
+
+## Permission Structure
+
+### Database Schema
+
+Permissions are stored in the `rol_permisos` table in the `cms` schema:
+
+```sql
+CREATE TABLE cms.rol_permisos (
+  id SERIAL PRIMARY KEY,
+  rol_nombre VARCHAR NOT NULL,      -- Role name (e.g., 'Administrador')
+  vista_slug VARCHAR NOT NULL,      -- View identifier (e.g., 'dashboard')
+  puede_ver BOOLEAN DEFAULT false,  -- Whether role can access this view
+  UNIQUE(rol_nombre, vista_slug)
+);
+```
+
+### Available Views
+
+The system defines these module views that can be controlled:
+
+```php admin_roles.php:12-27
+$vistasSistema = [
+    'dashboard' => 'Dashboard',
+    'usuarios'  => 'Usuarios (Básico)',
+    'categorias' => 'Categorías',
+    'clientes'   => 'Clientes',
+    'proyectos'  => 'Proyectos',
+    'empleados'  => 'Empleados',
+    'departamentos' => 'Departamentos',
+    'testimoniales' => 'Testimoniales',
+    'preguntas'     => 'Preguntas',
+    'contenido'     => 'Contenido',
+    'blog'          => 'Blog',
+    'seo'           => 'SEO',
+    'admin_usuarios' => 'Gestión Avanzada Usuarios',
+    'admin_roles'    => 'Roles y Permisos'
+];
+```
+
+## Permission Management Interface
+
+Administrators configure permissions through the Roles and Permissions interface.
+
+### Loading Permissions
+
+The system fetches all permission entries for configuration:
+
+```php admin_roles_api.php:75-81
+if ($action === 'get_permisos') {
+    // rol_permisos lives in 'cms' schema
+    $res = supabase_request_service('GET', 
+        'rol_permisos?select=id,rol_nombre,vista_slug,puede_ver&order=rol_nombre.asc'
+    );
+    $data = ($res['http'] === 200 && is_array($res['json'])) ? $res['json'] : [];
+    echo json_encode(['success' => true, 'permisos' => $data]);
+}
+```
+
+### Displaying Permission Checkboxes
+
+The interface renders toggles for each view:
+
+```html admin_roles.php:86-108
+<table class="gm-table-premium">
+    <thead>
+        <tr>
+            <th>MÓDULO / PANTALLA</th>
+            <th class="text-center">PUEDE VER</th>
+        </tr>
+    </thead>
+    <tbody id="permsTableBody">
+        <?php foreach ($vistasSistema as $slug => $nombre): ?>
+        <tr>
+            <td class="fw-semibold text-dark"><?= $nombre ?></td>
+            <td class="text-center">
+                <label class="gm-switch-premium">
+                    <input type="checkbox" 
+                           class="perm-check" 
+                           data-slug="<?= $slug ?>">
+                    <span class="slider"></span>
+                </label>
+            </td>
+        </tr>
+        <?php endforeach; ?>
+    </tbody>
+</table>
+```
+
+### Selecting a Role to Configure
+
+When a role is selected, the interface loads its current permissions:
+
+```javascript admin_roles.php:181-192
+function selectRole(rol) {
+    currentRol = rol;
+    document.getElementById('currentRoleTitle').innerHTML = 
+        `Permisos: <span class="text-primary">${rol.toUpperCase()}</span>`;
+    renderRoles();
+    
+    const checks = document.querySelectorAll('.perm-check');
+    checks.forEach(c => {
+        const slug = c.dataset.slug;
+        const p = allPerms.find(p => p.rol_nombre === rol && p.vista_slug === slug);
+        c.checked = p ? !!p.puede_ver : false;
+    });
+}
+```
+
+<Steps>
+  <Step title="User clicks on a role">
+    The `selectRole()` function is triggered with the role name.
+  </Step>
+  
+  <Step title="Update interface title">
+    Display which role is being configured.
+  </Step>
+  
+  <Step title="Load permission states">
+    Find each view's permission entry for this role.
+  </Step>
+  
+  <Step title="Update checkboxes">
+    Set checkbox states based on `puede_ver` values.
+  </Step>
+</Steps>
+
+## Saving Permissions
+
+Administrators save permission changes with the Save button:
+
+```javascript admin_roles.php:194-209
+async function savePerms() {
+    if (!currentRol) return Swal.fire('Error', 'Selecciona un rol', 'error');
+    
+    // Collect all permission states
+    const perms = [];
+    document.querySelectorAll('.perm-check').forEach(c => {
+        perms.push({ 
+            vista_slug: c.dataset.slug, 
+            puede_ver: c.checked 
+        });
+    });
+    
+    // Send to API
+    const r = await fetch('../api/admin_roles_api.php', {
+        method: 'POST',
+        body: JSON.stringify({ 
+            action: 'save_permisos', 
+            rol_nombre: currentRol, 
+            permisos: perms 
+        })
+    });
+    
+    const d = await r.json();
+    if (d.success) {
+        Swal.fire({ icon:'success', title:'Guardado', timer:1500, showConfirmButton:false });
+        loadData();
+    }
+}
+```
+
+### Server-Side Permission Save
+
+The API replaces all permissions for the role:
+
+```php admin_roles_api.php:88-114
+if ($action === 'save_permisos') {
+    $rol_nombre = trim($input['rol_nombre'] ?? '');
+    $permisos = $input['permisos'] ?? [];
+
+    if (empty($rol_nombre)) {
+        echo json_encode(['success' => false, 'error' => 'Falta rol_nombre']);
+        exit;
+    }
+
+    // Delete existing permissions for this role
+    supabase_request_service('DELETE', 
+        "rol_permisos?rol_nombre=eq." . urlencode($rol_nombre)
+    );
+
+    // Insert new permissions
+    $rows = [];
+    foreach ($permisos as $p) {
+        $rows[] = [
+            'rol_nombre' => $rol_nombre,
+            'vista_slug' => $p['vista_slug'],
+            'puede_ver'  => (bool)($p['puede_ver'] ?? false)
+        ];
+    }
+
+    if (!empty($rows)) {
+        $res = supabase_request_service('POST', 'rol_permisos', $rows, 
+            ['Prefer: return=minimal']
+        );
+        echo json_encode(['success' => ($res['http'] >= 200 && $res['http'] < 300)]);
+    } else {
+        echo json_encode(['success' => true]);
+    }
+}
+```
+
+<Info>
+The save operation uses a "delete and recreate" strategy: all existing permissions for the role are deleted, then new entries are inserted based on the current checkbox states.
+</Info>
+
+## Checking Permissions in Code
+
+While the permissions are stored in the database, the current implementation primarily uses role-based checks rather than view-level permission checks.
+
+### Admin Permission Check
+
+Most admin pages check for administrator role:
+
+```php admin_roles.php:6-9
+if (!$is_admin) {
+    http_response_code(403);
+    die("Acceso denegado. Se requieren permisos de administrador.");
+}
+```
+
+### API Permission Check
+
+APIs verify admin status before executing:
+
+```php admin_roles_api.php:14-29
+$isAdmin = false;
+$uRole = strtolower(trim($_SESSION['rol'] ?? ''));
+$uEmail = strtolower(trim($_SESSION['email'] ?? ''));
+
+if ($uRole === 'administrador' || $uRole === 'admin' || 
+    ($_SESSION['user']['admin'] ?? false)) {
+    $isAdmin = true;
+}
+if ($uEmail === 'emmanuel.jarquin@grupomecsa.net') {
+    $isAdmin = true;
+}
+
+if (!$isAdmin) {
+    http_response_code(403);
+    echo json_encode([
+        'success' => false, 
+        'error' => 'Sin permisos. Su correo: ' . $uEmail
+    ]);
+    exit;
+}
+```
+
+### Implementing View-Level Checks
+
+To implement granular permission checks based on the database:
+
+```php
+// Example permission check function
+function canUserAccessView($rol_nombre, $vista_slug) {
+    require_once __DIR__ . '/config/supabase.php';
+    
+    $res = supabase_request_service('GET', 
+        "rol_permisos?rol_nombre=eq." . urlencode($rol_nombre) . 
+        "&vista_slug=eq." . urlencode($vista_slug) . 
+        "&puede_ver=eq.true&select=id"
+    );
+    
+    return ($res['http'] === 200 && !empty($res['json']));
+}
+
+// Usage in a page
+session_start();
+require_once __DIR__ . '/../functions/resolve_user.php';
+
+$vista_actual = 'proyectos';
+if (!canUserAccessView($_SESSION['rol'], $vista_actual)) {
+    http_response_code(403);
+    die("No tienes permiso para acceder a esta vista.");
+}
+```
+
+<Note>
+The permissions table exists and can be configured, but full view-level enforcement would require adding permission checks to each protected page. Currently, most pages use role-based checks instead.
+</Note>
+
+## Permission Inheritance
+
+### Administrator Bypass
+
+Administrators have implicit access to all views:
+
+```php
+if ($is_admin) {
+    // Bypass all permission checks
+    $can_access = true;
+}
+```
+
+### Emergency Admin
+
+The emergency admin email bypasses all restrictions:
+
+```php resolve_user.php:55-59
+$isEmmanuel = (
+    $uEmail === 'emmanuel.jarquin@grupomecsa.net' || 
+    $uEmail === 'emmanueljarquin@hotmail.com' || 
+    $uEmail === 'emmanuelerj@gmail.com'
+);
+```
+
+## Permission Validation Flow
+
+<Steps>
+  <Step title="User authenticates">
+    Login process establishes session with user role.
+  </Step>
+  
+  <Step title="Page load">
+    Protected page includes `resolve_user.php` to load role info.
+  </Step>
+  
+  <Step title="Permission check">
+    Page checks if user's role allows access (via `$is_admin`, etc.).
+  </Step>
+  
+  <Step title="Grant or deny">
+    Allow page to render or return 403 error.
+  </Step>
+</Steps>
+
+## Staff Access Control
+
+The most fundamental permission check is staff access:
+
+```php resolve_user.php:67-73
+$sistemas = $_SESSION['user']['sistemas_acceso'] ?? [];
+if (is_string($sistemas)) $sistemas = json_decode($sistemas, true) ?: [];
+$sistemasUpper = array_map('strtoupper', (array)$sistemas);
+$hasCmsAccess = in_array('CMS', $sistemasUpper) || in_array('cms', (array)$sistemas);
+
+$is_staff = $is_admin || $is_rrhh || $is_proyecto || $is_comercial || $hasCmsAccess;
+```
+
+<Warning>
+Users without staff access are blocked at the login level and cannot access any CMS pages, regardless of their permissions configuration.
+</Warning>
+
+## Active Status Check
+
+Inactive users lose access even if they have a role:
+
+```php resolve_user.php:76-87
+if (!$is_staff && !$is_auth_page && isset($_SESSION['token'])) {
+    http_response_code(403);
+    include_once __DIR__ . '/../components/header.php';
+    echo "<div class='container mt-5'>
+            <div class='alert alert-danger shadow-sm'>
+                <h4 class='fw-bold'>Acceso Denegado</h4>
+                <p>Tu cuenta no tiene permisos para acceder al CMS.</p>
+                <a href='../logout.php' class='btn btn-danger'>Cerrar Sesión</a>
+            </div>
+          </div>";
+    exit;
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Default Deny" icon="lock">
+    Set new role permissions to `false` by default, then selectively enable
+  </Card>
+  
+  <Card title="Granular Access" icon="sliders">
+    Configure permissions at the view level for fine-grained control
+  </Card>
+  
+  <Card title="Regular Review" icon="rotate">
+    Audit permissions periodically to ensure they match business requirements
+  </Card>
+  
+  <Card title="Document Changes" icon="file-pen">
+    Keep a log of permission changes for compliance and troubleshooting
+  </Card>
+</CardGroup>
+
+## Extending the Permission System
+
+### Adding New Views
+
+To add a new view to the permission system:
+
+<Steps>
+  <Step title="Add to view list">
+    Add the new view to `$vistasSistema` array in `admin_roles.php`.
+  </Step>
+  
+  <Step title="Create role creation">
+    Update the view list in `create_rol` action to include the new view.
+  </Step>
+  
+  <Step title="Update existing roles">
+    Run an update to add the new view permission entry for all existing roles.
+  </Step>
+  
+  <Step title="Implement checks">
+    Add permission checks in the new page using the role or view permissions.
+  </Step>
+</Steps>
+
+### Adding Permission Levels
+
+To add more granular permissions (read, write, delete):
+
+```sql
+ALTER TABLE cms.rol_permisos 
+ADD COLUMN puede_crear BOOLEAN DEFAULT false,
+ADD COLUMN puede_editar BOOLEAN DEFAULT false,
+ADD COLUMN puede_eliminar BOOLEAN DEFAULT false;
+```
+
+Then update the interface and API to support these new permission types.
+
+## Security Considerations
+
+<Warning>
+**Critical Security Points:**
+
+- Always verify permissions on the server side, never trust client-side checks
+- Validate user sessions before checking permissions
+- Log permission denials for security monitoring
+- Use prepared statements or proper encoding when querying permissions
+- Never expose permission check logic to unauthenticated users
+</Warning>
+
+## Related Topics
+
+- [Authentication System](/users/authentication) - How users log in and sessions work
+- [User Roles](/users/roles) - Understanding the role structure

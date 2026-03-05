@@ -1,0 +1,248 @@
+---
+title: 'Authentication'
+description: 'How to authenticate with the Grupo Mecsa CMS API'
+---
+
+## Overview
+
+The Grupo Mecsa CMS API uses Supabase authentication with JWT tokens. All authenticated requests require a valid access token in the `Authorization` header.
+
+## Authentication Flow
+
+1. **Login** with email and password
+2. Receive an **access token** and **refresh token**
+3. Include the **access token** in subsequent API requests
+4. **Refresh** the token when it expires
+
+## Login
+
+### Using the PHP SDK
+
+```php
+require_once 'supabase.php';
+
+$supabase = new Supabase();
+
+try {
+    $response = $supabase->login('user@grupomecsa.net', 'password123');
+    
+    $accessToken = $response['access_token'];
+    $refreshToken = $response['refresh_token'];
+    $user = $response['user'];
+    
+    // Store tokens in session
+    $_SESSION['token'] = $accessToken;
+    $_SESSION['user'] = $user;
+    
+} catch (Exception $e) {
+    echo "Login failed:" . $e->getMessage();
+}
+```
+
+### Direct HTTP Request
+
+```bash
+curl -X POST "https://awhuzekjpoapamijlvua.supabase.co/auth/v1/token?grant_type=password" \
+  -H "apikey: YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@grupomecsa.net",
+    "password": "password123"
+  }'
+```
+
+### Response
+
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "bearer",
+  "expires_in": 3600,
+  "refresh_token": "...",
+  "user": {
+    "id": "uuid",
+    "email": "user@grupomecsa.net",
+    "user_metadata": {
+      "requires_password_change": false
+    }
+  }
+}
+```
+
+## Using Access Tokens
+
+### In PHP SDK Methods
+
+Pass the token as a parameter:
+
+```php
+$token = $_SESSION['token'];
+
+// Get data with authentication
+$employees = $supabase->getData('Empleados', $token);
+
+// Insert data with authentication
+$newEmployee = [
+    'nombre' => 'John Doe',
+    'email' => 'john@grupomecsa.net',
+    'rol' => 'ventas'
+];
+$result = $supabase->insertData('Empleados', $newEmployee, $token);
+```
+
+### In HTTP Headers
+
+Include the token in the `Authorization` header:
+
+```bash
+curl -X GET "https://awhuzekjpoapamijlvua.supabase.co/rest/v1/Empleados?select=*" \
+  -H "apikey: YOUR_API_KEY" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Accept-Profile: public"
+```
+
+## API Keys
+
+The API uses two types of keys:
+
+### Publishable Key (anon key)
+
+- Used for client-side requests
+- Has Row Level Security (RLS) restrictions
+- Safe to expose in frontend code
+
+```php
+$supabase_key = 'sb_publishable_G6dRjvRfALqwuYaG1kew7w_Xud8hTgb';
+```
+
+### Service Role Key
+
+- Used for server-side admin operations
+- **Bypasses Row Level Security (RLS)**
+- **Never expose in client code**
+- Required for admin operations like recovery links
+
+```php
+$supabase_service_role = 'sb_secret_C-Z-MttzHCPnOR1y2Py4rw_VSsTvV_w';
+```
+
+<Warning>
+  The service role key has **full access** to your database and bypasses all security rules. Never expose it in client-side code or public repositories.
+</Warning>
+
+## Session Management
+
+API endpoints expect active sessions with valid tokens:
+
+```php
+session_start();
+
+if (!isset($_SESSION['token'])) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'error' => 'No autenticado']);
+    exit;
+}
+
+$token = $_SESSION['token'];
+```
+
+## Admin Authorization
+
+Many endpoints require admin privileges. The API checks for admin role:
+
+```php
+$isAdmin = false;
+$userRole = strtolower(trim($_SESSION['rol'] ?? ''));
+$userEmail = strtolower(trim($_SESSION['email'] ?? ''));
+
+if ($userRole === 'administrador' || $userRole === 'admin') {
+    $isAdmin = true;
+}
+
+if ($userEmail === 'emmanuel.jarquin@grupomecsa.net') {
+    $isAdmin = true;
+}
+
+if (!$isAdmin) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'error' => 'Sin permisos']);
+    exit;
+}
+```
+
+## Password Management
+
+### Update Password
+
+```php
+$token = $_SESSION['token'];
+$newPassword = 'newSecurePassword123';
+
+$result = $supabase->updatePassword($token, $newPassword);
+```
+
+### Generate Recovery Link (Admin Only)
+
+```php
+try {
+    $recoveryLink = $supabase->generateRecoveryLink(
+        'user@grupomecsa.net',
+        'https://cms.grupomecsa.net/reset-password'
+    );
+    
+    echo "Recovery link: " . $recoveryLink;
+} catch (Exception $e) {
+    echo "Error: " . $e->getMessage();
+}
+```
+
+<Warning>
+  `generateRecoveryLink()` requires the **service role key** and is an admin-only operation.
+</Warning>
+
+## Resend Confirmation Email
+
+```php
+try {
+    $result = $supabase->resendConfirmation('user@grupomecsa.net');
+    echo "Confirmation email sent";
+} catch (Exception $e) {
+    echo "Error: " . $e->getMessage();
+}
+```
+
+## Security Best Practices
+
+1. **Always use HTTPS** in production
+2. **Store tokens securely** in server-side sessions
+3. **Never expose service role keys** in client code
+4. **Validate user permissions** before processing requests
+5. **Implement token refresh** logic for long-lived sessions
+6. **Use environment variables** for API keys and secrets
+
+## Error Handling
+
+```php
+try {
+    $result = $supabase->login($email, $password);
+    
+    if (!isset($result['access_token'])) {
+        throw new Exception('Login failed: Invalid credentials');
+    }
+    
+    $_SESSION['token'] = $result['access_token'];
+    
+} catch (Exception $e) {
+    http_response_code(401);
+    echo json_encode([
+        'success' => false,
+        'error' => $e->getMessage()
+    ]);
+}
+```
+
+## Next Steps
+
+- [Supabase Class Reference](/api/classes/supabase) - Complete authentication methods documentation
+- [Admin Roles API](/api/endpoints/admin-roles) - Role management endpoints
+- [Employee Role API](/api/endpoints/employee-role) - Employee role updates

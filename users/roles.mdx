@@ -1,0 +1,366 @@
+---
+title: User Roles
+description: Understanding the role-based access control system in Grupo Mecsa CMS
+icon: user-tag
+---
+
+## Overview
+
+Grupo Mecsa CMS uses a flexible role-based access control (RBAC) system where each employee is assigned a role that determines their access to different modules and features. Roles are stored in the `Empleados` table and referenced throughout the system.
+
+## Standard Roles
+
+The system includes six predefined standard roles that cannot be deleted:
+
+<CardGroup cols={2}>
+  <Card title="Administrador" icon="crown">
+    Full system access with ability to manage users, roles, and all modules
+  </Card>
+  
+  <Card title="Ventas" icon="dollar-sign">
+    Access to sales-related modules including clients and opportunities
+  </Card>
+  
+  <Card title="Proyectos" icon="hard-hat">
+    Project management access with ability to view and edit project data
+  </Card>
+  
+  <Card title="Recepción" icon="concierge-bell">
+    Reception desk access for basic customer service features
+  </Card>
+  
+  <Card title="Mercadeo" icon="ad">
+    Marketing team access for content, blog, and SEO management
+  </Card>
+  
+  <Card title="Contabilidad" icon="file-invoice-dollar">
+    Accounting access for financial modules and reports
+  </Card>
+</CardGroup>
+
+## Role Structure
+
+### Database Schema
+
+Roles are stored in the `Empleados` table in the `public` schema:
+
+```sql
+CREATE TABLE public."Empleados" (
+  id UUID PRIMARY KEY,
+  nombre VARCHAR,
+  apellido VARCHAR,
+  email VARCHAR UNIQUE,
+  rol VARCHAR,  -- Role name (e.g., 'Administrador', 'Ventas')
+  chat_role VARCHAR,
+  departamento VARCHAR,
+  activo BOOLEAN DEFAULT true,
+  sistemas_acceso JSONB  -- Array of accessible systems ['CMS', 'Chat', etc.]
+);
+```
+
+### Session Storage
+
+Role information is stored in the session after login:
+
+```php login.php:95-97
+$_SESSION['rol'] = $uData['rol'] ?? '';
+$_SESSION['chat_role'] = $uData['chat_role'] ?? '';
+$_SESSION['nombre'] = $uData['nombre'] ?? '';
+```
+
+## Role Management Interface
+
+Administrators can manage roles through the `admin_roles.php` interface.
+
+### Fetching Available Roles
+
+The system fetches roles with user counts:
+
+```php admin_roles_api.php:36-72
+if ($action === 'get_roles') {
+    // Get roles with user counts from Empleados table
+    $res = supabase_request_service('GET', 
+        'Empleados?select=rol&activo=eq.true', 
+        null, 
+        ['Accept-Profile: public']
+    );
+    $roles_raw = ($res['http'] === 200 && is_array($res['json'])) ? $res['json'] : [];
+    
+    // Count users per role
+    $counts = [];
+    foreach ($roles_raw as $r) {
+        $rol = strtolower(trim($r['rol'] ?? ''));
+        if ($rol === '') continue;
+        $counts[$rol] = ($counts[$rol] ?? 0) + 1;
+    }
+
+    $standard = ['ventas', 'proyectos', 'administrador', 'recepcion', 'mercadeo', 'contabilidad'];
+    $result = [];
+    
+    // Add standard roles first
+    foreach ($standard as $s) {
+        $result[] = [
+            'nombre' => $s, 
+            'total' => $counts[$s] ?? 0, 
+            'is_standard' => true
+        ];
+    }
+    
+    // Add custom roles
+    foreach ($counts as $nombre => $total) {
+        if (!in_array($nombre, $standard)) {
+            $result[] = [
+                'nombre' => $nombre, 
+                'total' => $total, 
+                'is_standard' => false
+            ];
+        }
+    }
+    
+    echo json_encode(['success' => true, 'roles' => $result]);
+}
+```
+
+<Note>
+Standard roles are always displayed first, followed by any custom roles that have been created.
+</Note>
+
+### Creating New Roles
+
+Administrators can create custom roles:
+
+```php admin_roles_api.php:117-136
+if ($action === 'create_rol') {
+    $rol_nombre = trim($input['rol_nombre'] ?? '');
+    if (empty($rol_nombre)) {
+        echo json_encode(['success' => false, 'error' => 'Nombre de rol requerido']);
+        exit;
+    }
+
+    // Define default views for new roles
+    $vistas = [
+        'dashboard','usuarios','categorias','clientes','proyectos','empleados',
+        'departamentos','testimoniales','preguntas','contenido','templates',
+        'menus','pages','media','seo','blog','vacantes','contactos'
+    ];
+
+    $rows = [];
+    foreach ($vistas as $v) {
+        $rows[] = [
+            'rol_nombre' => $rol_nombre, 
+            'vista_slug' => $v, 
+            'puede_ver' => false
+        ];
+    }
+
+    $res = supabase_request_service('POST', 'rol_permisos', $rows);
+    echo json_encode(['success' => ($res['http'] >= 200 && $res['http'] < 300)]);
+}
+```
+
+<Info>
+When a new role is created, it's automatically assigned permission entries for all system views with `puede_ver` set to `false`. Administrators must then configure the permissions.
+</Info>
+
+### Deleting Custom Roles
+
+Only custom roles without assigned users can be deleted:
+
+```php admin_roles_api.php:139-149
+if ($action === 'delete_rol') {
+    $rol_nombre = trim($input['rol_nombre'] ?? '');
+    
+    // Check if role has assigned users
+    $chk = supabase_request_service('GET', 
+        "Empleados?rol=eq." . urlencode($rol_nombre) . "&select=id&limit=1", 
+        null, 
+        ['Accept-Profile: public']
+    );
+    if ($chk['http'] === 200 && !empty($chk['json'])) {
+        echo json_encode(['success' => false, 'error' => 'El rol tiene usuarios asignados']);
+        exit;
+    }
+    
+    supabase_request_service('DELETE', "rol_permisos?rol_nombre=eq." . urlencode($rol_nombre));
+    echo json_encode(['success' => true]);
+}
+```
+
+<Warning>
+Standard roles cannot be deleted. Custom roles can only be deleted if no employees are currently assigned to them.
+</Warning>
+
+## Assigning Roles to Users
+
+Roles are assigned through the employee management interface:
+
+```php update_employee_role.php:25-38
+$id = $_POST['id'] ?? '';
+$rol = trim($_POST['rol'] ?? '');
+$chat_role = trim($_POST['chat_role'] ?? '');
+$departamento = trim($_POST['departamento'] ?? '');
+
+if (empty($id)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'ID requerido']);
+    exit;
+}
+
+$payload = [];
+if ($rol !== '') $payload['rol'] = $rol;
+if ($chat_role !== '') $payload['chat_role'] = $chat_role;
+if ($departamento !== '') $payload['departamento'] = $departamento;
+
+$res = supabase_request_service('PATCH', "Empleados?id=eq.$id", $payload, ['Accept-Profile: public']);
+```
+
+## Role Resolution
+
+The system uses `resolve_user.php` to determine the current user's role and permissions:
+
+```php resolve_user.php:50-66
+// Normalize and calculate permissions
+$uRole = strtolower(trim($cms_user_role));
+$uEmail = strtolower(trim($cms_user_email));
+
+// Emergency admin bypass
+$isEmmanuel = (
+    $uEmail === 'emmanuel.jarquin@grupomecsa.net' || 
+    $uEmail === 'emmanueljarquin@hotmail.com' || 
+    $uEmail === 'emmanuelerj@gmail.com'
+);
+
+// Role mapping
+$is_admin = ($uRole === 'administrador' || $uRole === 'admin') || $isEmmanuel;
+$is_rrhh = ($uRole === 'rh' || $uRole === 'rrhh' || $uRole === 'recursos humanos');
+$is_proyecto = ($uRole === 'proyectos' || $uRole === 'proyecto' || 
+                $uRole === 'proyectos_edicion' || $uRole === 'proyectos_lectura');
+$is_comercial = ($uRole === 'ventas' || $uRole === 'comercial');
+```
+
+### Permission Variables
+
+The resolve script provides these boolean variables for permission checks:
+
+| Variable | Description |
+|----------|-------------|
+| `$is_admin` | True if user is administrator |
+| `$is_rrhh` | True if user is Human Resources |
+| `$is_proyecto` | True if user has project role |
+| `$is_comercial` | True if user has sales role |
+| `$is_staff` | True if user has any valid role |
+
+## Role-Based Page Protection
+
+Pages can require specific roles using the resolve script:
+
+```php admin_roles.php:3-9
+session_start();
+if (!isset($_SESSION['token'])) {
+    header("Location: ../login.php");
+    exit;
+}
+require_once __DIR__ . '/../functions/resolve_user.php';
+
+if (!$is_admin) {
+    http_response_code(403);
+    die("Acceso denegado. Se requieren permisos de administrador.");
+}
+```
+
+<Steps>
+  <Step title="Include resolve_user.php">
+    The script loads and evaluates the current user's role.
+  </Step>
+  
+  <Step title="Check permission variable">
+    Use `$is_admin`, `$is_rrhh`, etc. to verify access.
+  </Step>
+  
+  <Step title="Deny or allow access">
+    Return 403 error or allow page to load based on role check.
+  </Step>
+</Steps>
+
+## Role Icons and Display
+
+The admin interface uses icons for visual role identification:
+
+```javascript admin_roles.php:145-156
+const icons = {
+    'ventas': 'fa-dollar-sign',
+    'proyectos': 'fa-hard-hat',
+    'administrador': 'fa-crown',
+    'recepcion': 'fa-concierge-bell',
+    'mercadeo': 'fa-ad',
+    'contabilidad': 'fa-file-invoice-dollar'
+};
+const defaultIcon = 'fa-user-tag';
+const roleIcon = icons[r.nombre.toLowerCase()] || defaultIcon;
+```
+
+## Systems Access
+
+In addition to roles, users have a `sistemas_acceso` field that controls which systems they can access:
+
+```php update_employee_role.php:45-66
+if ($activo !== null) {
+    // Fetch current systems
+    $resGet = supabase_request_service('GET', 
+        "Empleados?id=eq.$id&select=sistemas_acceso", 
+        null, 
+        ['Accept-Profile: public']
+    );
+    
+    if ($resGet['http'] === 200 && !empty($resGet['json'])) {
+        $sistemas = $resGet['json'][0]['sistemas_acceso'] ?? [];
+        if (is_string($sistemas)) {
+            $sistemas = json_decode($sistemas, true) ?: [];
+        }
+        
+        $brand = 'CMS';
+        if ($activo) {
+            // Add CMS access
+            if (!in_array($brand, $sistemas) && !in_array('cms', $sistemas)) {
+                $sistemas[] = $brand;
+            }
+        } else {
+            // Remove CMS access
+            $sistemas = array_values(array_filter($sistemas, 
+                fn($s) => strtoupper($s) !== $brand
+            ));
+        }
+        $payload['sistemas_acceso'] = $sistemas;
+        $payload['activo'] = $activo;
+    }
+}
+```
+
+<Info>
+The `sistemas_acceso` field is a JSON array that can contain values like `['CMS', 'Chat', 'Portal']`. Users must have 'CMS' in this array to access the CMS, regardless of their role.
+</Info>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Principle of Least Privilege" icon="user-shield">
+    Assign users only the roles they need to perform their job functions
+  </Card>
+  
+  <Card title="Regular Audits" icon="list-check">
+    Periodically review role assignments and remove unnecessary access
+  </Card>
+  
+  <Card title="Custom Roles" icon="plus">
+    Create specific roles for unique access patterns rather than modifying standard roles
+  </Card>
+  
+  <Card title="Documentation" icon="book">
+    Document what each role can access for training and compliance
+  </Card>
+</CardGroup>
+
+## Related Topics
+
+- [Authentication System](/users/authentication) - How users log in
+- [Permissions System](/users/permissions) - How role permissions are configured

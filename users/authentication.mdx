@@ -1,0 +1,375 @@
+---
+title: Authentication System
+description: Learn how authentication works in Grupo Mecsa CMS with Supabase
+icon: lock
+---
+
+## Overview
+
+Grupo Mecsa CMS uses **Supabase Auth** for user authentication, providing secure login, password management, and session handling. The authentication system integrates with the employee database to enforce role-based access control.
+
+## Authentication Flow
+
+<Steps>
+  <Step title="User enters credentials">
+    The user provides their email and password on the login page.
+  </Step>
+  
+  <Step title="Supabase authentication">
+    Credentials are verified against Supabase Auth using the `login()` method.
+  </Step>
+  
+  <Step title="Employee data validation">
+    System fetches employee record from `Empleados` table to verify CMS access.
+  </Step>
+  
+  <Step title="Permission check">
+    Validates that user has 'CMS' in `sistemas_acceso` array or admin role.
+  </Step>
+  
+  <Step title="Session creation">
+    Session variables are set with tokens, user info, and permissions.
+  </Step>
+</Steps>
+
+## Login Implementation
+
+The login process is handled in `login.php` using the Supabase class.
+
+### Basic Login Flow
+
+```php login.php:63-78
+$login = $supa->login($email, $pass);
+
+if (isset($login['access_token'])) {
+    // Store authentication tokens
+    $_SESSION['token'] = $login['access_token'];
+    $_SESSION['refresh_token'] = $login['refresh_token'];
+    
+    // Calculate token expiry
+    if (isset($login['expires_in'])) {
+        $_SESSION['token_expires_at'] = time() + intval($login['expires_in']);
+    }
+    
+    // Store user identification
+    $_SESSION['email'] = $email;
+    $_SESSION['uid'] = $login['user']['id'] ?? null;
+}
+```
+
+### Supabase Login Method
+
+The `Supabase` class provides the authentication interface:
+
+```php supabase.php:117-128
+public function login($email, $password) {
+    $url = rtrim($this->url, '/') . '/auth/v1/token?grant_type=password';
+    $res = $this->_execute_auth_request($url, 'POST', [
+        'email' => $email,
+        'password' => $password
+    ], [
+        "apikey: " . $this->apiKey,
+        "Content-Type: application/json"
+    ]);
+    
+    return json_decode($res['body'], true);
+}
+```
+
+## Employee Data Validation
+
+After successful authentication, the system validates the employee record:
+
+```php login.php:84-99
+$resEmp = supabase_request('GET', 
+    "Empleados?id_user=eq." . $login['user']['id'] . 
+    "&select=rol,chat_role,nombre,sistemas_acceso,activo", 
+    null, 
+    ['Accept-Profile: public']
+);
+
+if ($resEmp['http'] === 200 && !empty($resEmp['json'])) {
+    $uData = $resEmp['json'][0];
+    $sistemas = $uData['sistemas_acceso'] ?? [];
+    
+    if (!in_array('CMS', $sistemas) && $email !== 'emmanuel.jarquin@grupomecsa.net') {
+        $error = "No tienes permisos de acceso para GrupoMecsaCMS.";
+        session_destroy();
+    } else {
+        $_SESSION['rol'] = $uData['rol'] ?? '';
+        $_SESSION['chat_role'] = $uData['chat_role'] ?? '';
+        $_SESSION['nombre'] = $uData['nombre'] ?? '';
+    }
+}
+```
+
+<Note>
+The system checks if 'CMS' is present in the `sistemas_acceso` array. Users without this permission are denied access unless they're the emergency admin.
+</Note>
+
+## Access Control Verification
+
+The final security check ensures only authorized staff can access:
+
+```php login.php:139-162
+$isStaff = false;
+
+if ($email === 'emmanuel.jarquin@grupomecsa.net') {
+    $isStaff = true;
+} elseif ($fetchedUser && !empty($fetchedUser['activo'])) {
+    $sistemas = $fetchedUser['sistemas_acceso'] ?? [];
+    if (is_string($sistemas)) {
+        $sistemas = json_decode($sistemas, true) ?: [];
+    }
+    
+    $hasCmsAccess = (is_array($sistemas) && 
+        (in_array('cms', $sistemas) || in_array('CMS', $sistemas)));
+    $isAdminRole = (isset($fetchedUser['rol']) && 
+        (strtolower($fetchedUser['rol']) === 'administrador' || 
+         strtolower($fetchedUser['rol']) === 'admin'));
+    
+    if ($hasCmsAccess || $isAdminRole) {
+        $isStaff = true;
+    }
+}
+
+if (!$isStaff) {
+    session_destroy();
+    $error = "Acceso denegado. Esta plataforma es exclusiva para personal autorizado.";
+}
+```
+
+## Session Management
+
+### Session Variables
+
+The following session variables are set upon successful login:
+
+| Variable | Description |
+|----------|-------------|
+| `$_SESSION['token']` | JWT access token from Supabase |
+| `$_SESSION['refresh_token']` | Token for refreshing expired sessions |
+| `$_SESSION['token_expires_at']` | Unix timestamp of token expiration |
+| `$_SESSION['email']` | User's email address |
+| `$_SESSION['uid']` | Supabase user ID |
+| `$_SESSION['rol']` | User's role (admin, comercial, etc.) |
+| `$_SESSION['chat_role']` | Chat system role |
+| `$_SESSION['nombre']` | User's full name |
+| `$_SESSION['user']` | Complete employee record |
+
+### Session Protection
+
+All protected pages check for active sessions:
+
+```php
+session_start();
+if (!isset($_SESSION['token'])) {
+    header("Location: ../login.php");
+    exit;
+}
+```
+
+<Warning>
+The system automatically destroys sessions when:
+- User lacks CMS access permissions
+- Employee is marked as inactive (`activo = false`)
+- Authentication fails or token is invalid
+</Warning>
+
+## Password Reset Process
+
+Users can reset forgotten passwords through a secure recovery flow.
+
+<Steps>
+  <Step title="User requests password reset">
+    User enters their email on the login page modal.
+  </Step>
+  
+  <Step title="Recovery link generation">
+    System generates a secure recovery link using Supabase Admin API.
+  </Step>
+  
+  <Step title="Email delivery">
+    Recovery email is sent with branded template and action link.
+  </Step>
+  
+  <Step title="Password update">
+    User clicks link, enters new password on `restablecer.php`.
+  </Step>
+</Steps>
+
+### Recovery Link Generation
+
+```php login.php:31-41
+$email = trim($_POST['recover_email']);
+$protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https' : 'http';
+if (isset($_SERVER['HTTP_X_FORWARDED_PROTO'])) {
+    $protocol = $_SERVER['HTTP_X_FORWARDED_PROTO'];
+}
+$host = $_SERVER['HTTP_HOST'];
+$request_uri = $_SERVER['REQUEST_URI'];
+$base_path = rtrim(dirname($request_uri), '/\\');
+$redirectTo = "$protocol://$host$base_path/restablecer.php";
+
+$actionLink = $supa->generateRecoveryLink($email, $redirectTo);
+```
+
+### Generate Recovery Link (Supabase Class)
+
+```php supabase.php:165-191
+public function generateRecoveryLink($email, $redirectTo = '') {
+    global $supabase_service_role; 
+    
+    $url = rtrim($this->url, '/') . '/auth/v1/admin/generate_link';
+    $data = ['type' => 'recovery', 'email' => $email];
+    
+    if (!empty($redirectTo)) {
+        $data['redirectTo'] = $redirectTo;
+        $data['redirect_to'] = $redirectTo;
+        $data['options'] = ['redirectTo' => $redirectTo, 'redirect_to' => $redirectTo];
+    }
+
+    $res = $this->_execute_auth_request($url, 'POST', $data, [
+        "apikey: " . ($supabase_service_role ?? $this->apiKey),
+        "Authorization: Bearer " . ($supabase_service_role ?? $this->apiKey),
+        "Content-Type: application/json"
+    ]);
+    
+    $result = json_decode($res['body'], true);
+    if ($res['http'] === 200 && isset($result['action_link'])) {
+        return $result['action_link'];
+    }
+    throw new Exception($result['error_description'] ?? 'Admin operation failed');
+}
+```
+
+<Info>
+The `generateRecoveryLink()` method requires Supabase Service Role Key for admin operations. This key should be stored securely in `local.supabase.php`.
+</Info>
+
+### Password Reset Page
+
+The `restablecer.php` page handles the actual password update:
+
+```php restablecer.php:11-47
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $new_pass = $_POST['new_password'] ?? '';
+    $confirm_pass = $_POST['confirm_password'] ?? '';
+    $token = $_POST['access_token'] ?? $tokenFromGet ?? $_SESSION['token'] ?? '';
+
+    if (strlen($new_pass) < 6) {
+        $error = "La contraseña debe tener al menos 6 caracteres.";
+    } elseif ($new_pass !== $confirm_pass) {
+        $error = "Las contraseñas no coinciden.";
+    } elseif (empty($token)) {
+        $error = "Sesión inválida o expirada.";
+    } else {
+        $url = $supabase_url . '/auth/v1/user';
+        $payload = ['password' => $new_pass];
+
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PUT');
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/json',
+            'apikey: ' . $supabase_key,
+            'Authorization: Bearer ' . $token
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode === 200) {
+            $success = "¡Contraseña actualizada con éxito!";
+            header("refresh:2;url=login.php");
+        } else {
+            $error = "Error al actualizar. El enlace puede haber expirado.";
+        }
+    }
+}
+```
+
+## Forced Password Change
+
+The system supports forcing users to change passwords on first login:
+
+```php login.php:124-130
+$userMetadata = $login['user']['user_metadata'] ?? [];
+if (isset($userMetadata['requires_password_change']) && 
+    ($userMetadata['requires_password_change'] === true || 
+     $userMetadata['requires_password_change'] === 'true')) {
+    $_SESSION['force_password_change'] = true;
+    header("Location: pages/cambiar_password.php");
+    exit;
+}
+```
+
+<Note>
+When a user has `requires_password_change` set to `true` in their user metadata, they're redirected to the password change page immediately after login.
+</Note>
+
+## Security Features
+
+### Email Verification
+
+Unverified emails are detected and users can request resend:
+
+```php login.php:169-177
+if (isset($login['error_description']) && 
+    strpos($login['error_description'], 'Email not confirmed') !== false) {
+    $error = "Tu correo no ha sido verificado.";
+    $_SESSION['resend_email'] = $email;
+} elseif (isset($login['error'])) {
+    $error = "Error de autenticación: " . $login['error'];
+} else {
+    $error = "Error de autenticación. Verifica tus credenciales.";
+}
+```
+
+### Emergency Admin Bypass
+
+A specific email can bypass certain restrictions:
+
+```php login.php:136-137
+if ($email === 'emmanuel.jarquin@grupomecsa.net') {
+    $isStaff = true;
+}
+```
+
+### Client Access Prevention
+
+The system explicitly prevents non-staff access:
+
+```php login.php:159-162
+if (!$isStaff) {
+    session_destroy();
+    $error = "Acceso denegado. Esta plataforma es exclusiva para personal autorizado y no permite el acceso a clientes.";
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Token Refresh" icon="refresh">
+    Implement token refresh logic using `refresh_token` to maintain sessions
+  </Card>
+  
+  <Card title="Secure Storage" icon="shield-halved">
+    Store service role keys in `local.supabase.php`, never in version control
+  </Card>
+  
+  <Card title="Session Validation" icon="check-circle">
+    Check token expiry and validate sessions on each protected page
+  </Card>
+  
+  <Card title="Error Handling" icon="triangle-exclamation">
+    Provide clear, user-friendly error messages without exposing system details
+  </Card>
+</CardGroup>
+
+## Related Topics
+
+- [User Roles](/users/roles) - Understanding role structure
+- [Permissions System](/users/permissions) - How permissions are enforced

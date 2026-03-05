@@ -1,0 +1,231 @@
+---
+title: 'Supabase Configuration'
+description: 'Learn how to configure Supabase credentials and environment settings for Grupo Mecsa CMS'
+icon: 'database'
+---
+
+## Overview
+
+Grupo Mecsa CMS uses Supabase as its backend database and authentication provider. The system automatically detects whether it's running in production or development and loads the appropriate configuration.
+
+## Configuration Files
+
+The CMS uses two main configuration approaches:
+
+### 1. Main Configuration File
+
+Location: `config/supabase.php`
+
+This is the centralized configuration file that handles:
+- Environment detection (production vs development)
+- Loading credentials from environment variables or defaults
+- Providing helper functions for API requests
+
+### 2. Supabase Class
+
+Location: `supabase.php` (root)
+
+Provides object-oriented interface for:
+- Authentication (login, password reset)
+- Data operations (CRUD)
+- Admin operations (user management)
+
+## Environment-Specific Configuration
+
+### Production Environment
+
+<Info>
+The system automatically detects production when the hostname contains `grupomecsa.net`
+</Info>
+
+In production, credentials are loaded from:
+1. Environment variables (recommended)
+2. Default values in `config/supabase.php`
+
+```php
+$supabase_url = getenv('SUPABASE_URL') ?: 'https://awhuzekjpoapamijlvua.supabase.co';
+$supabase_key = getenv('SUPABASE_KEY') ?: 'sb_publishable_G6dRjvRfALqwuYaG1kew7w_Xud8hTgb';
+$supabase_service_role = getenv('SUPABASE_SERVICE_ROLE') ?: 'sb_secret_C-Z-MttzHCPnOR1y2Py4rw_VSsTvV_w';
+```
+
+### Development Environment
+
+<Note>
+Local configuration is only loaded when **not** in production environment
+</Note>
+
+For local development, create a `local.supabase.php` file in the root directory:
+
+```php local.supabase.php
+<?php
+// Local Supabase Configuration (Development Only)
+$supabase_url = 'https://your-project.supabase.co';
+$supabase_key = 'your-anon-public-key';
+$supabase_service_role = 'your-service-role-key';
+?>
+```
+
+<Warning>
+**Never commit `local.supabase.php` to version control!** Add it to `.gitignore` to prevent exposing credentials.
+</Warning>
+
+## Setup Instructions
+
+<Steps>
+  <Step title="Get Supabase Credentials">
+    1. Log in to your [Supabase Dashboard](https://app.supabase.com)
+    2. Select your project
+    3. Go to **Settings** → **API**
+    4. Copy the following:
+       - Project URL
+       - `anon` `public` key
+       - `service_role` key (for admin operations)
+  </Step>
+
+  <Step title="Configure Development Environment">
+    Create `local.supabase.php` in the root directory:
+    
+    ```php
+    <?php
+    $supabase_url = 'https://xxxxx.supabase.co';
+    $supabase_key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
+    $supabase_service_role = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
+    ?>
+    ```
+  </Step>
+
+  <Step title="Configure Production Environment">
+    Set environment variables on your server:
+    
+    ```bash
+    export SUPABASE_URL="https://xxxxx.supabase.co"
+    export SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    export SUPABASE_SERVICE_ROLE="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    ```
+    
+    Or configure in Apache/PHP-FPM:
+    
+    ```apache .htaccess
+    SetEnv SUPABASE_URL "https://xxxxx.supabase.co"
+    SetEnv SUPABASE_KEY "your-anon-key"
+    SetEnv SUPABASE_SERVICE_ROLE "your-service-role-key"
+    ```
+  </Step>
+
+  <Step title="Set Database Schema">
+    The CMS uses the `cms` schema by default. This is configured in `config/supabase.php`:
+    
+    ```php
+    $supabase_schema = 'cms';
+    ```
+    
+    Ensure your Supabase database has a `cms` schema with the required tables.
+  </Step>
+
+  <Step title="Verify Configuration">
+    Test the connection by logging into the CMS at `http://localhost/GrupoMecsaCMS/login.php`
+  </Step>
+</Steps>
+
+## Configuration Details
+
+### Key Types
+
+<Info>
+The CMS requires two different API keys for different security levels:
+</Info>
+
+| Key Type | Variable | Usage |
+|----------|----------|-------|
+| **Anon/Public Key** | `$supabase_key` | Standard database operations with Row Level Security (RLS) |
+| **Service Role Key** | `$supabase_service_role` | Admin operations that bypass RLS (user management, password resets) |
+
+### Schema Configuration
+
+The system uses schema-based routing for API requests:
+
+```php
+$supabase_schema = 'cms'; // Default schema
+```
+
+All REST API requests include these headers:
+- `Accept-Profile: cms`
+- `Content-Profile: cms`
+
+This ensures queries target the correct database schema.
+
+### Platform-Specific Handling
+
+<Tip>
+The configuration automatically detects Windows (XAMPP) vs Linux and uses the appropriate cURL implementation
+</Tip>
+
+**Windows/XAMPP:**
+- Uses `curl.exe` via `shell_exec()`
+- Includes SSL bypass flags: `-k --ssl-no-revoke`
+- Required for local XAMPP development
+
+**Linux/Production:**
+- Uses PHP's native `curl_init()` and related functions
+- Standard SSL handling for production servers
+
+## Helper Functions
+
+The `config/supabase.php` file provides several helper functions:
+
+### Basic Request
+```php
+$result = supabase_request('GET', '/clientes?select=*');
+```
+
+### Service Role Request (Admin)
+```php
+$result = supabase_request_service('POST', '/auth/v1/admin/users', $userData);
+```
+
+### Quick GET
+```php
+$result = supabase_get('/clientes?select=*');
+```
+
+### Response Format
+```php
+array(
+  'http' => 200,              // HTTP status code
+  'body' => '{...}',          // Raw response body
+  'json' => array(...),       // Decoded JSON (if applicable)
+  'error' => null             // Error message (if any)
+)
+```
+
+## Troubleshooting
+
+### Connection Issues
+
+<Warning>
+If you see SSL certificate errors on Windows/XAMPP, ensure `curl.exe` is available in your system PATH
+</Warning>
+
+### Authentication Errors
+
+1. Verify your API keys are correct
+2. Check that the keys have not expired
+3. Ensure RLS policies allow your operations
+4. For admin operations, verify you're using the service role key
+
+### Schema Not Found
+
+1. Verify the `cms` schema exists in your Supabase database
+2. Check that all tables are in the correct schema
+3. Run the schema creation SQL from `docs/supabase_email_builder.sql`
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Security Configuration" icon="shield" href="/config/security">
+    Learn about security best practices and session management
+  </Card>
+  <Card title="Deployment" icon="rocket" href="/config/deployment">
+    Deploy your CMS to production servers
+  </Card>
+</CardGroup>

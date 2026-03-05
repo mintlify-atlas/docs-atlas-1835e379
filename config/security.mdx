@@ -1,0 +1,395 @@
+---
+title: 'Security Configuration'
+description: 'Security best practices, session management, and access control for Grupo Mecsa CMS'
+icon: 'shield-halved'
+---
+
+## Overview
+
+Grupo Mecsa CMS implements comprehensive security measures to protect sensitive data and ensure only authorized staff can access administrative functions.
+
+## Security Architecture
+
+The CMS uses a multi-layered security approach:
+
+1. **Session-based Authentication** - Secure token storage in PHP sessions
+2. **Role-based Access Control (RBAC)** - Fine-grained permissions by user role
+3. **Supabase Row Level Security** - Database-level access control
+4. **Security Audit Logging** - Track unauthorized access attempts
+
+## Access Control
+
+### Security Check Implementation
+
+<Info>
+Every protected page must include `config/security_check.php` to enforce authentication and authorization
+</Info>
+
+Location: `config/security_check.php`
+
+The security check runs on every page load and performs:
+- Session validation
+- Token verification  
+- Role authorization
+- Access denial for non-staff users
+
+### Usage in Pages
+
+Include at the top of every protected PHP file:
+
+```php
+<?php
+require_once __DIR__ . '/config/security_check.php';
+// Rest of your page code
+?>
+```
+
+### Staff Roles
+
+The system recognizes four staff roles:
+
+| Role | Variable | Permissions |
+|------|----------|-------------|
+| **Admin** | `$isAdmin` | Full system access, user management |
+| **Comercial** | `$isComercial` | Client and project management |
+| **Proyecto** | `$isProyecto` | Project management and tracking |
+| **RRHH** | `$isRRHH` | Employee and department management |
+
+<Warning>
+Users without any staff role are immediately blocked and logged out, even if they have valid credentials
+</Warning>
+
+### Role Detection Logic
+
+```php
+$user = $_SESSION['user'] ?? null;
+
+// Check Admin role
+$isAdmin = !empty($user['admin']) && 
+           ($user['admin'] === true || $user['admin'] === 't' || 
+            $user['admin'] === 1 || $user['admin'] === '1');
+
+// Check other roles similarly
+$isComercial = !empty($user['comercial']) && (/* boolean checks */);
+$isProyecto = !empty($user['proyecto']) && (/* boolean checks */);
+$isRRHH = !empty($user['rrhh']) && (/* boolean checks */);
+
+// User must have at least one role
+$isStaff = $isAdmin || $isComercial || $isProyecto || $isRRHH;
+```
+
+<Tip>
+The system handles multiple boolean representations (true, 't', 1, '1') to accommodate different data sources and database types
+</Tip>
+
+## Session Management
+
+### Session Initialization
+
+```php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+```
+
+The security check safely starts sessions only if not already active.
+
+### Required Session Variables
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `$_SESSION['token']` | string | Supabase authentication JWT token |
+| `$_SESSION['user']` | array | User profile with role flags |
+| `$_SESSION['uid']` | string | Unique user identifier |
+
+### Token Validation
+
+<Warning>
+If no token is found in the session, users are immediately redirected to login (except from login.php itself)
+</Warning>
+
+```php
+if (!isset($_SESSION['token'])) {
+    if (basename($_SERVER['PHP_SELF']) !== 'login.php') {
+        header("Location: ../../login.php?error=session_expired");
+        exit;
+    }
+}
+```
+
+### Session Expiration
+
+Users are redirected with specific error codes:
+- `session_expired` - No valid token found
+- `unauthorized_staff_only` - Valid user but no staff role
+- `unauthorized` - Generic access denial
+
+## API Key Protection
+
+### Development vs Production Keys
+
+<Warning>
+**CRITICAL:** Never commit API keys to version control!
+</Warning>
+
+#### Development Environment
+
+Store keys in `local.supabase.php` (add to `.gitignore`):
+
+```php local.supabase.php
+<?php
+$supabase_url = 'https://xxxxx.supabase.co';
+$supabase_key = 'your-development-anon-key';
+$supabase_service_role = 'your-development-service-role-key';
+?>
+```
+
+#### Production Environment
+
+Use environment variables:
+
+```bash
+# Set in server environment
+export SUPABASE_URL="https://production.supabase.co"
+export SUPABASE_KEY="production-anon-key"
+export SUPABASE_SERVICE_ROLE="production-service-role-key"
+```
+
+Or configure in `.htaccess`:
+
+```apache
+SetEnv SUPABASE_URL "https://production.supabase.co"
+SetEnv SUPABASE_KEY "production-anon-key"
+SetEnv SUPABASE_SERVICE_ROLE "production-service-role-key"
+```
+
+### Key Types and Security Levels
+
+<Info>
+Understand the difference between key types to use them appropriately
+</Info>
+
+#### Anon/Public Key (`$supabase_key`)
+- **Security Level:** Standard
+- **RLS:** Enforced (respects Row Level Security policies)
+- **Usage:** Normal CRUD operations, user-level authentication
+- **Exposure:** Can be exposed in client-side code
+
+#### Service Role Key (`$supabase_service_role`)
+- **Security Level:** Administrative
+- **RLS:** Bypassed (full database access)
+- **Usage:** User management, password resets, admin operations
+- **Exposure:** Must NEVER be exposed to clients
+
+<Warning>
+The service role key grants unrestricted database access. Only use it server-side for administrative operations.
+</Warning>
+
+## Security Audit Logging
+
+### Audit Log Location
+
+Unauthorized access attempts are logged to:
+```
+security_audit.log
+```
+
+### Log Format
+
+```
+[2026-03-05 14:23:45] CMS_BLOCK: Page=dashboard.php UID=user123
+[2026-03-05 14:24:12] CMS_BLOCK: Page=usuarios.php UID=N/A
+```
+
+Each entry includes:
+- Timestamp
+- Event type (CMS_BLOCK)
+- Page that was blocked
+- User ID (if available)
+
+### Log Implementation
+
+```php
+@file_put_contents(
+    __DIR__ . '/../../security_audit.log',
+    date('[Y-m-d H:i:s] ') . 
+    "CMS_BLOCK: Page=" . basename($_SERVER['PHP_SELF']) . 
+    " UID=" . ($_SESSION['uid'] ?? 'N/A') . "\n",
+    FILE_APPEND
+);
+```
+
+<Tip>
+Regularly review the audit log to detect potential security issues or brute force attempts
+</Tip>
+
+## Best Practices
+
+### 1. Credential Management
+
+<Steps>
+  <Step title="Never Commit Secrets">
+    Add sensitive files to `.gitignore`:
+    ```gitignore
+    local.supabase.php
+    .env
+    *.key
+    security_audit.log
+    ```
+  </Step>
+
+  <Step title="Use Environment Variables">
+    Store production credentials in environment variables, not in code
+  </Step>
+
+  <Step title="Rotate Keys Regularly">
+    Periodically regenerate API keys in the Supabase dashboard
+  </Step>
+
+  <Step title="Separate Dev and Prod">
+    Use different Supabase projects for development and production
+  </Step>
+</Steps>
+
+### 2. Session Security
+
+```php
+// Configure secure session settings
+ini_set('session.cookie_httponly', 1);
+ini_set('session.cookie_secure', 1);  // HTTPS only
+ini_set('session.cookie_samesite', 'Strict');
+```
+
+<Warning>
+Always use HTTPS in production to protect session tokens from interception
+</Warning>
+
+### 3. Password Security
+
+- Enforce strong password requirements
+- Use Supabase's built-in password hashing
+- Implement password reset flows with time-limited tokens
+- Support multi-factor authentication (MFA)
+
+### 4. Database Security
+
+<Info>
+Leverage Supabase Row Level Security (RLS) for defense in depth
+</Info>
+
+Example RLS policy:
+
+```sql
+-- Users can only see their own data
+CREATE POLICY "Users view own data"
+ON cms.users
+FOR SELECT
+USING (auth.uid() = id);
+
+-- Admins can see everything
+CREATE POLICY "Admins view all"
+ON cms.users
+FOR SELECT
+USING (auth.jwt() ->> 'admin' = 'true');
+```
+
+### 5. Input Validation
+
+```php
+// Sanitize user input
+$email = filter_var($_POST['email'], FILTER_SANITIZE_EMAIL);
+$name = htmlspecialchars($_POST['name'], ENT_QUOTES, 'UTF-8');
+
+// Validate before processing
+if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    die('Invalid email');
+}
+```
+
+### 6. CSRF Protection
+
+Implement CSRF tokens for state-changing operations:
+
+```php
+// Generate token
+$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+
+// Validate on form submission
+if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+    die('CSRF validation failed');
+}
+```
+
+## Monitoring and Maintenance
+
+### Regular Tasks
+
+<Steps>
+  <Step title="Review Audit Logs">
+    Check `security_audit.log` weekly for suspicious activity
+  </Step>
+
+  <Step title="Monitor Sessions">
+    Track active sessions and unusual login patterns
+  </Step>
+
+  <Step title="Update Dependencies">
+    Keep Composer packages updated:
+    ```bash
+    composer update
+    ```
+  </Step>
+
+  <Step title="Security Audits">
+    Perform periodic security reviews of code and configurations
+  </Step>
+</Steps>
+
+### Security Incident Response
+
+If you detect unauthorized access:
+
+1. **Immediate Actions:**
+   - Revoke compromised API keys in Supabase
+   - Force logout all sessions
+   - Change admin passwords
+
+2. **Investigation:**
+   - Review audit logs
+   - Check database access logs in Supabase
+   - Identify the attack vector
+
+3. **Remediation:**
+   - Patch the vulnerability
+   - Update security policies
+   - Notify affected users if necessary
+
+## Security Checklist
+
+<Warning>
+Ensure all items are checked before deploying to production
+</Warning>
+
+- [ ] All sensitive files added to `.gitignore`
+- [ ] Production API keys stored in environment variables
+- [ ] HTTPS enabled on production server
+- [ ] Secure session settings configured
+- [ ] `security_check.php` included on all protected pages
+- [ ] Row Level Security policies configured in Supabase
+- [ ] Regular audit log reviews scheduled
+- [ ] Strong password policy enforced
+- [ ] CSRF protection implemented on forms
+- [ ] Input validation on all user inputs
+- [ ] Error messages don't reveal sensitive information
+- [ ] Security headers configured (HSTS, CSP, X-Frame-Options)
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Supabase Configuration" icon="database" href="/config/supabase">
+    Configure database connection and credentials
+  </Card>
+  <Card title="Deployment" icon="rocket" href="/config/deployment">
+    Deploy securely to production
+  </Card>
+</CardGroup>

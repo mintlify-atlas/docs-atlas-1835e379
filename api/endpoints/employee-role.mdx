@@ -1,0 +1,344 @@
+---
+title: 'Employee Role API'
+description: 'Update employee role assignments and system access'
+---
+
+## Overview
+
+The Employee Role API allows administrators to update employee information including their role, chat role, department, and system access status. This endpoint operates on the `public.Empleados` table.
+
+**Endpoint:** `/api/update_employee_role.php`
+
+**Method:** `POST`
+
+## Authentication
+
+<Warning>
+  This endpoint requires **admin privileges**. Users must have:
+  - Role: `administrador` or `admin`, OR
+  - User metadata: `admin: true`
+</Warning>
+
+### Session Requirements
+
+```php
+session_start();
+if (!isset($_SESSION['token'])) {
+    // Returns 401 Unauthorized
+}
+```
+
+## Request
+
+**Content-Type:** `application/x-www-form-urlencoded` or `application/json`
+
+```bash
+POST /api/update_employee_role.php
+```
+
+### Parameters
+
+<ParamField path="id" type="string" required>
+  Employee ID (UUID) to update
+</ParamField>
+
+<ParamField path="rol" type="string">
+  New role assignment for the employee
+  
+  **Common values:**
+  - `ventas`
+  - `proyectos`
+  - `administrador`
+  - `recepcion`
+  - `mercadeo`
+  - `contabilidad`
+</ParamField>
+
+<ParamField path="chat_role" type="string">
+  Role designation for chat/messaging features
+</ParamField>
+
+<ParamField path="departamento" type="string">
+  Department assignment for the employee
+</ParamField>
+
+<ParamField path="activo" type="boolean">
+  System access status
+  
+  - `true` or `"1"`: Grant CMS access
+  - `false` or `"0"`: Revoke CMS access
+  
+  When set, automatically updates `sistemas_acceso` array:
+  - **Active**: Adds "CMS" to the systems array
+  - **Inactive**: Removes "CMS" from the systems array
+</ParamField>
+
+## Request Examples
+
+### Form Data
+
+```bash
+curl -X POST "https://cms.grupomecsa.net/api/update_employee_role.php" \
+  -H "Cookie: PHPSESSID=your_session_id" \
+  -d "id=550e8400-e29b-41d4-a716-446655440000" \
+  -d "rol=ventas" \
+  -d "departamento=Ventas Región Norte" \
+  -d "activo=1"
+```
+
+### JSON
+
+```bash
+curl -X POST "https://cms.grupomecsa.net/api/update_employee_role.php" \
+  -H "Content-Type: application/json" \
+  -H "Cookie: PHPSESSID=your_session_id" \
+  -d '{
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "rol": "proyectos",
+    "chat_role": "project_manager",
+    "departamento": "Gestión de Proyectos",
+    "activo": true
+  }'
+```
+
+### PHP Example
+
+```php
+<?php
+session_start();
+
+// Verify admin access
+if ($_SESSION['rol'] !== 'administrador') {
+    die('Unauthorized');
+}
+
+$employeeId = '550e8400-e29b-41d4-a716-446655440000';
+
+$data = http_build_query([
+    'id' => $employeeId,
+    'rol' => 'ventas',
+    'departamento' => 'Ventas',
+    'activo' => '1'
+]);
+
+$ch = curl_init('https://cms.grupomecsa.net/api/update_employee_role.php');
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_POST, true);
+curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+curl_setopt($ch, CURLOPT_COOKIE, session_name() . '=' . session_id());
+
+$response = curl_exec($ch);
+$result = json_decode($response, true);
+
+if ($result['success']) {
+    echo "Employee updated successfully";
+} else {
+    echo "Error: " . $result['error'];
+}
+?>
+```
+
+## Response
+
+### Success Response
+
+```json
+{
+  "success": true,
+  "error": null,
+  "debug": {
+    "payload": {
+      "rol": "ventas",
+      "departamento": "Ventas Región Norte",
+      "sistemas_acceso": ["CMS", "ERP"],
+      "activo": true
+    },
+    "http_code": 200
+  }
+}
+```
+
+**Response Fields:**
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the update was successful
+</ResponseField>
+
+<ResponseField name="error" type="string" required>
+  Error message (null if successful)
+</ResponseField>
+
+<ResponseField name="debug" type="object">
+  Debug information about the request
+  
+  <Expandable title="Debug Object">
+    <ResponseField name="payload" type="object">
+      The data that was sent to Supabase for the update
+    </ResponseField>
+    
+    <ResponseField name="http_code" type="integer">
+      HTTP status code from Supabase
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Error Responses
+
+#### 401 Unauthorized
+
+```json
+{
+  "success": false,
+  "error": "No autenticado"
+}
+```
+
+#### 403 Forbidden
+
+```json
+{
+  "success": false,
+  "error": "Sin permisos"
+}
+```
+
+#### 400 Bad Request
+
+```json
+{
+  "success": false,
+  "error": "ID requerido"
+}
+```
+
+#### Update Failed
+
+```json
+{
+  "success": false,
+  "error": "Error HTTP 422 al actualizar. {\"code\":\"...\",\"message\":\"...\"}" ,
+  "debug": {
+    "payload": {...},
+    "http_code": 422
+  }
+}
+```
+
+## System Access Management
+
+The `activo` parameter has special behavior:
+
+### Granting CMS Access
+
+When `activo=true`:
+
+1. Fetches current `sistemas_acceso` array
+2. Adds "CMS" if not already present
+3. Updates both `sistemas_acceso` and `activo` fields
+
+```php
+// Before
+$sistemas_acceso = ["ERP", "Portal"];
+
+// After (activo=true)
+$sistemas_acceso = ["ERP", "Portal", "CMS"];
+$activo = true;
+```
+
+### Revoking CMS Access
+
+When `activo=false`:
+
+1. Fetches current `sistemas_acceso` array
+2. Removes "CMS" (case-insensitive)
+3. Updates both fields
+
+```php
+// Before
+$sistemas_acceso = ["ERP", "CMS", "Portal"];
+
+// After (activo=false)
+$sistemas_acceso = ["ERP", "Portal"];
+$activo = false;
+```
+
+<Info>
+  The `sistemas_acceso` array may contain other system identifiers (e.g., "ERP", "Portal"). The API only modifies the "CMS" entry, preserving access to other systems.
+</Info>
+
+## Partial Updates
+
+You can update any combination of fields. Only provided fields are updated:
+
+```bash
+# Update only role
+curl -X POST "..." -d "id=...&rol=ventas"
+
+# Update only department
+curl -X POST "..." -d "id=...&departamento=Marketing"
+
+# Update only access status
+curl -X POST "..." -d "id=...&activo=0"
+
+# Update multiple fields
+curl -X POST "..." -d "id=...&rol=proyectos&departamento=Proyectos&activo=1"
+```
+
+## Database Schema
+
+The endpoint updates the `public.Empleados` table:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID | Employee unique identifier |
+| `rol` | TEXT | Role assignment |
+| `chat_role` | TEXT | Chat/messaging role |
+| `departamento` | TEXT | Department assignment |
+| `activo` | BOOLEAN | Global active status |
+| `sistemas_acceso` | JSONB | Array of accessible systems |
+
+## Related Endpoints
+
+- [Admin Roles API](/api/endpoints/admin-roles) - Manage role definitions and permissions
+- [Authentication](/api/authentication) - Learn about admin authorization
+
+## Common Use Cases
+
+### Promote Employee to Manager
+
+```php
+$data = [
+    'id' => $employeeId,
+    'rol' => 'administrador',
+    'chat_role' => 'manager',
+    'activo' => '1'
+];
+```
+
+### Transfer to Different Department
+
+```php
+$data = [
+    'id' => $employeeId,
+    'rol' => 'ventas',
+    'departamento' => 'Ventas Región Sur'
+];
+```
+
+### Revoke CMS Access
+
+```php
+$data = [
+    'id' => $employeeId,
+    'activo' => '0'  // Removes "CMS" from sistemas_acceso
+];
+```
+
+### Grant CMS Access to Existing Employee
+
+```php
+$data = [
+    'id' => $employeeId,
+    'activo' => '1'  // Adds "CMS" to sistemas_acceso
+];
+```

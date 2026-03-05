@@ -1,0 +1,125 @@
+---
+title: 'Email Builder Overview'
+description: 'Visual email template builder with MailChimp and Gmail compatibility'
+---
+
+## What is the Email Builder?
+
+The Email Builder is a visual drag-and-drop tool for creating professional email templates directly in the Grupo Mecsa CMS. It generates HTML code that is fully compatible with major email clients including MailChimp and Gmail.
+
+<Note>
+All generated HTML uses table-based layouts and inline styles to ensure maximum compatibility across email clients.
+</Note>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Drag & Drop Interface" icon="hand-pointer">
+    Intuitive visual builder with draggable components for easy email design
+  </Card>
+  
+  <Card title="MailChimp Compatible" icon="envelope">
+    Generated HTML works seamlessly with MailChimp, Gmail, and other major email platforms
+  </Card>
+  
+  <Card title="Reusable Components" icon="cubes">
+    Create custom components with variables that can be reused across multiple templates
+  </Card>
+  
+  <Card title="Theme Management" icon="palette">
+    Define primary and secondary colors that automatically apply throughout your email
+  </Card>
+  
+  <Card title="Responsive Layout" icon="mobile">
+    Built with 600px table-based layouts that adapt to different screen sizes
+  </Card>
+  
+  <Card title="Template Library" icon="folder-open">
+    Save and manage email templates for quick reuse and organization
+  </Card>
+</CardGroup>
+
+## Email Compatibility
+
+The Email Builder generates email-safe HTML that follows best practices for email rendering:
+
+- **Table-based layouts** - Uses `<table>` elements with 600px width for maximum compatibility
+- **Inline styles** - All CSS is applied inline to avoid stripping by email clients
+- **Color tokens** - Primary and secondary colors are replaced throughout the template
+- **Safe HTML** - Avoids complex CSS, JavaScript, and unsupported HTML5 elements
+
+## Components System
+
+The builder includes two types of components:
+
+### Structure Blocks
+
+Define the layout of your email:
+- **1 Column** - Single full-width column
+- **2 Columns** - Split content into two equal sections
+- **3 Columns** - Three-column layout for complex designs
+
+### Content Blocks
+
+Add content to your email:
+- **Title** - Headings with primary color styling
+- **Text** - Paragraph content with rich text editing
+- **List** - Bulleted or numbered lists
+- **Image** - Upload and display images from Supabase storage
+- **Button** - Call-to-action buttons with customizable colors
+- **Separator** - Horizontal dividers
+- **Social** - Social media icons with links
+- **Custom** - Reusable components from your library
+
+## Theme Configuration
+
+Each email template supports customizable theme colors:
+
+- **Primary Color** - Used for buttons, titles, and main CTAs (default: `#1a237e`)
+- **Secondary Color** - Used for links, accents, and secondary elements (default: `#e53935`)
+- **Text Color** - Body text and paragraph content (default: `#222222`)
+- **Title Color** - Headings and subtitles (default: `#222222`)
+
+<Warning>
+Color changes apply globally to all matching elements in your template. Test thoroughly before sending.
+</Warning>
+
+## Workflow
+
+<Steps>
+  <Step title="Create Template">
+    Start by giving your email template a name and setting its status (Draft/Published)
+  </Step>
+  
+  <Step title="Add Rows">
+    Drag row structures (1, 2, or 3 columns) onto the canvas
+  </Step>
+  
+  <Step title="Add Content">
+    Drop content blocks into columns and customize with your content
+  </Step>
+  
+  <Step title="Configure Theme">
+    Set your brand colors in the sidebar configuration panel
+  </Step>
+  
+  <Step title="Preview & Export">
+    Preview your email and export the HTML for use in MailChimp or other platforms
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Using the Builder" icon="wand-magic-sparkles" href="/email/builder">
+    Learn how to create emails with the visual builder
+  </Card>
+  
+  <Card title="Available Components" icon="cubes" href="/email/components">
+    Explore all available email components
+  </Card>
+  
+  <Card title="Template Management" icon="folder" href="/email/templates">
+    Manage and organize your email templates
+  </Card>
+</CardGroup>

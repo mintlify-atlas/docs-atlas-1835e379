@@ -1,0 +1,438 @@
+---
+title: 'Email Templates'
+description: 'Creating, saving, and managing email templates'
+---
+
+## Template Management
+
+Email templates are stored in Supabase and can be reused, edited, and exported. Access templates from **Emails** in the CMS navigation.
+
+## Template List
+
+The templates page (`emails.php`) displays all saved email templates:
+
+**Columns:**
+- **Título** - Template name
+- **Estado** - Status badge (Borrador/Publicado)
+- **Fecha** - Creation date and time
+- **Acciones** - Edit, Preview, Delete buttons
+
+<Note>
+Templates are ordered by creation date (newest first).
+</Note>
+
+## Creating a New Template
+
+<Steps>
+  <Step title="Navigate to Email Builder">
+    Click "+ Nueva plantilla" button from the templates list
+  </Step>
+  
+  <Step title="Configure Settings">
+    In the left sidebar, set:
+    - **Template name** - Descriptive name (e.g., "Holiday Sale 2026")
+    - **Status** - Draft or Published
+    - **Theme colors** - Primary, Secondary, Text, Title colors
+  </Step>
+  
+  <Step title="Build Email Content">
+    Use the visual builder to:
+    - Add rows and columns
+    - Insert content blocks
+    - Customize text, images, and buttons
+    - Arrange layout with drag-and-drop
+  </Step>
+  
+  <Step title="Preview Template">
+    Click **Vista previa** to review:
+    - Full email rendering
+    - Color scheme application
+    - Layout and spacing
+    - Image loading
+  </Step>
+  
+  <Step title="Save Template">
+    Click **Guardar** to save:
+    - Validates required fields (template name)
+    - Generates HTML from builder state
+    - Stores JSON structure and HTML to Supabase
+    - Redirects to templates list
+  </Step>
+</Steps>
+
+## Template Properties
+
+Each template stores the following data:
+
+### Basic Information
+
+- **ID** - Unique identifier (UUID)
+- **Title** - Template name
+- **Slug** - URL-friendly identifier (optional)
+- **Status** - Draft, Published, or Archived
+- **Created At** - Timestamp of creation
+- **Created By** - User ID (if using authentication)
+
+### Design Data
+
+- **Blocks JSON** - Array of row/column/block structure
+- **HTML Final** - Generated HTML code ready for email clients
+- **Primary Color** - Main theme color (hex code)
+- **Secondary Color** - Accent theme color (hex code)
+- **Text Color** - Body text color (hex code)
+- **Title Color** - Heading text color (hex code)
+
+### Template Structure Example
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "title": "Welcome Email",
+  "slug": "welcome-email",
+  "status": "published",
+  "blocks_json": [
+    {
+      "layout": 1,
+      "columns": [
+        [
+          {
+            "type": "title",
+            "content": "Welcome to Grupo Mecsa",
+            "alignment": "center",
+            "color": "#1a237e"
+          },
+          {
+            "type": "text",
+            "content": "<p>Thank you for joining us!</p>",
+            "alignment": "left",
+            "color": "#222222"
+          }
+        ]
+      ]
+    }
+  ],
+  "html_final": "<!doctype html>...",
+  "primary_color": "#1a237e",
+  "secondary_color": "#e53935",
+  "textolista_color": "#222222",
+  "titulosubtitulo_color": "#222222",
+  "created_at": "2026-03-05T10:30:00Z"
+}
+```
+
+## Editing Existing Templates
+
+<Steps>
+  <Step title="Open Template">
+    Click the **edit icon** (pen) next to a template in the list
+  </Step>
+  
+  <Step title="Email Builder Loads">
+    Template opens in `editaremail.php` with:
+    - All rows and blocks restored from JSON
+    - Theme colors applied
+    - Original template name and status
+  </Step>
+  
+  <Step title="Make Changes">
+    Edit any aspect of the template:
+    - Add/remove/rearrange blocks
+    - Modify text and images
+    - Update colors
+    - Change template name or status
+  </Step>
+  
+  <Step title="Save Updates">
+    Click **Guardar** to update:
+    - Overwrites existing template record
+    - Preserves original ID and creation date
+    - Updates `blocks_json` and `html_final`
+  </Step>
+</Steps>
+
+<Warning>
+Editing a template overwrites the previous version. There is no version history or undo. Consider duplicating important templates before major changes.
+</Warning>
+
+## Template Status
+
+Templates have three possible statuses:
+
+### Draft
+
+- **Badge:** Gray "Borrador"
+- **Purpose:** Work-in-progress templates
+- **Use case:** Templates being designed or tested
+
+### Published
+
+- **Badge:** Green "Publicado"
+- **Purpose:** Ready-to-use templates
+- **Use case:** Templates approved for sending to customers
+
+### Archived
+
+- **Badge:** Not displayed in UI
+- **Purpose:** Inactive or outdated templates
+- **Use case:** Historical templates no longer in use
+
+<Note>
+Status is informational only and does not affect functionality. You can edit or export templates regardless of status.
+</Note>
+
+## Previewing Templates
+
+### From Template List
+
+1. Click the **eye icon** next to a template
+2. Preview modal opens with rendered HTML
+3. View full email as it will appear to recipients
+4. Close modal to return to list
+
+### From Email Builder
+
+1. Click **Vista previa** button in top actions bar
+2. Modal displays current builder state
+3. Shows unsaved changes
+4. Useful for testing before saving
+
+### Preview Modal Features
+
+- **Full HTML rendering** - Displays email exactly as sent
+- **Scrollable content** - For long emails
+- **Responsive iframe** - Shows desktop view (600px width)
+- **Close button** - Returns to previous screen
+
+## Exporting Templates
+
+### Export HTML Code
+
+<Steps>
+  <Step title="Open Template">
+    Edit the template or create new one
+  </Step>
+  
+  <Step title="View HTML">
+    Click **Ver HTML** button in builder
+  </Step>
+  
+  <Step title="Copy or Download">
+    - Click **Copiar** to copy HTML to clipboard
+    - Click **Descargar** to save as `.html` file
+  </Step>
+</Steps>
+
+### Using in MailChimp
+
+<Steps>
+  <Step title="Copy HTML">
+    Export HTML from Email Builder as described above
+  </Step>
+  
+  <Step title="Open MailChimp">
+    Log into your MailChimp account
+  </Step>
+  
+  <Step title="Create Campaign">
+    - Start a new email campaign
+    - Choose "Code your own" template option
+  </Step>
+  
+  <Step title="Paste HTML">
+    - Paste the exported HTML into MailChimp's code editor
+    - Preview to verify rendering
+  </Step>
+  
+  <Step title="Test & Send">
+    - Send test email to yourself
+    - Verify all links and images work
+    - Schedule or send campaign
+  </Step>
+</Steps>
+
+### Using in Gmail
+
+Gmail doesn't support direct HTML upload, but you can:
+
+1. **Save HTML as file** - Download from Email Builder
+2. **Open in browser** - View the `.html` file locally
+3. **Copy rendered email** - Select all (Ctrl+A) and copy
+4. **Paste into Gmail** - Paste as formatted content in Gmail compose
+
+<Warning>
+Pasting HTML into Gmail may lose some formatting. For best results, use MailChimp or a dedicated email service.
+</Warning>
+
+## Deleting Templates
+
+<Steps>
+  <Step title="Click Delete">
+    Click the **trash icon** next to a template
+  </Step>
+  
+  <Step title="Confirm Deletion">
+    JavaScript confirmation dialog appears
+  </Step>
+  
+  <Step title="Template Removed">
+    - Record deleted from Supabase
+    - Page reloads without deleted template
+    - Action cannot be undone
+  </Step>
+</Steps>
+
+<Warning>
+Deleting a template is permanent and cannot be undone. There is no recycle bin or archive. Consider changing status to "Archived" instead.
+</Warning>
+
+## Template Reuse Workflow
+
+Best practices for reusing templates:
+
+### 1. Create Base Templates
+
+Design reusable base templates for common email types:
+- Welcome emails
+- Newsletter layouts
+- Promotional campaigns
+- Transactional emails
+
+### 2. Duplicate Before Editing
+
+Since there's no built-in duplicate feature:
+1. Edit the original template
+2. Change the template name (e.g., "Newsletter - March 2026")
+3. Save as new template
+4. Original remains unchanged
+
+### 3. Use Custom Components
+
+For elements that appear across multiple templates:
+1. Create custom components in the library
+2. Use the **Custom** block type
+3. Configure per template as needed
+
+### 4. Maintain Color Consistency
+
+Use consistent theme colors across templates:
+- Save brand colors in a reference document
+- Apply same colors to all templates
+- Update colors globally when brand changes
+
+## Database Structure
+
+Templates are stored in the `email_templates` table:
+
+```sql
+CREATE TABLE email_templates (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  title TEXT NOT NULL,
+  slug TEXT,
+  status TEXT DEFAULT 'draft',
+  blocks_json JSONB,
+  html_final TEXT,
+  primary_color TEXT DEFAULT '#0d6efd',
+  secondary_color TEXT DEFAULT '#6c757d',
+  textolista_color TEXT DEFAULT '#222222',
+  titulosubtitulo_color TEXT DEFAULT '#222222',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_by UUID REFERENCES auth.users(id)
+);
+```
+
+## API Operations
+
+Template operations use Supabase REST API:
+
+### List Templates
+
+```php
+$result = supabase_request('GET', 'email_templates?select=*&order=created_at.desc');
+$templates = json_decode($result['body'], true) ?: [];
+```
+
+### Create Template
+
+```php
+$data = [
+  'title' => 'New Template',
+  'status' => 'draft',
+  'blocks_json' => $blocks,
+  'html_final' => $html,
+  'primary_color' => '#1a237e',
+  'secondary_color' => '#e53935'
+];
+$result = supabase_request('POST', 'email_templates', $data);
+```
+
+### Update Template
+
+```php
+$result = supabase_request(
+  'PATCH',
+  'email_templates?id=eq.' . $id,
+  $data
+);
+```
+
+### Delete Template
+
+```php
+$result = supabase_request(
+  'DELETE',
+  'email_templates?id=eq.' . $id
+);
+```
+
+## Troubleshooting
+
+### Template Won't Save
+
+**Symptoms:** Clicking "Guardar" doesn't redirect or shows error
+
+**Solutions:**
+1. Check that template name is filled in
+2. Verify you're logged in (session not expired)
+3. Check browser console for JavaScript errors
+4. Verify Supabase connection
+
+### Template Loads Empty
+
+**Symptoms:** Editing template shows blank canvas
+
+**Solutions:**
+1. Check that `blocks_json` field exists in database
+2. Verify JSON is valid (not corrupted)
+3. Check browser console for parsing errors
+4. Try loading a different template
+
+### Colors Not Applying
+
+**Symptoms:** Theme colors don't affect blocks
+
+**Solutions:**
+1. Ensure color fields are valid hex codes (e.g., `#1a237e`)
+2. Reload the page to apply initial colors
+3. Check that blocks are set to inherit theme colors
+4. Verify `EmailBuilderCopia.setTheme()` is called
+
+### Preview Shows Broken Layout
+
+**Symptoms:** Preview modal displays incorrectly
+
+**Solutions:**
+1. Check that all image URLs are publicly accessible
+2. Verify no JavaScript errors in console
+3. Test in actual email client (MailChimp, Gmail)
+4. Validate generated HTML structure
+
+## Best Practices
+
+1. **Descriptive names** - Use clear, dated names ("Spring Sale 2026 - v2")
+2. **Draft first** - Keep templates as Draft until fully tested
+3. **Test sends** - Send test emails before marking Published
+4. **Document variables** - Note custom component variables for reuse
+5. **Regular backups** - Export important templates as HTML files
+6. **Consistent branding** - Maintain color consistency across templates
+7. **Mobile testing** - Always preview on mobile devices before sending
+8. **Archive old templates** - Mark unused templates as Archived

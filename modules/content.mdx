@@ -1,0 +1,332 @@
+---
+title: Content Management
+description: Create and manage website content with hierarchical categories and flexible layouts
+icon: file-lines
+---
+
+## Overview
+
+The Content module is the heart of your website's content management system. It allows you to create, organize, and publish content items with flexible layouts, featured images, and hierarchical categorization.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Flexible Layouts" icon="layout">
+    Choose from multiple layout templates for content display
+  </Card>
+  <Card title="Image Management" icon="image">
+    Upload and store featured images in Supabase Storage
+  </Card>
+  <Card title="Hierarchical Categories" icon="sitemap">
+    Organize content with parent-child category relationships
+  </Card>
+  <Card title="JSONB Content" icon="code">
+    Store rich content with flexible body and layout configuration
+  </Card>
+</CardGroup>
+
+## Content Structure
+
+Each content item consists of:
+
+- **Title** (`titulo`): Content headline
+- **Description** (`descripcion`): JSONB object containing:
+  - `body`: Main content text/HTML
+  - `layout`: Layout template ID (1, 2, 3, etc.)
+- **Category** (`categoria`): Category ID for organization
+- **Featured Image** (`imagen_principal`): Optional main image
+
+## Creating Content
+
+<Steps>
+  <Step title="Access Content Module">
+    Navigate to **Content** from the sidebar menu.
+  </Step>
+  
+  <Step title="Click 'New Content'">
+    Click the "Guardar Contenido" button to open the content form.
+  </Step>
+  
+  <Step title="Enter Content Details">
+    Fill in the required fields:
+    - **Title**: Content headline
+    - **Category**: Select from hierarchical dropdown
+    - **Body**: Main content (supports HTML)
+    - **Layout**: Choose layout template (1-3)
+    - **Featured Image**: Optional image upload
+  </Step>
+  
+  <Step title="Save Content">
+    Submit the form to create the content record.
+  </Step>
+</Steps>
+
+## Content Body and Layout
+
+Content description is stored as JSONB:
+
+```php contenido.php
+$descripcion_body = trim($_POST['descripcion_body'] ?? '');
+$descripcion_layout = intval($_POST['descripcion_layout'] ?? 1);
+
+// Construct JSONB object
+$descripcion_jsonb = json_encode([
+    'body' => $descripcion_body,
+    'layout' => $descripcion_layout
+], JSON_UNESCAPED_UNICODE);
+```
+
+### Layout Options
+
+| Layout ID | Description |
+|-----------|-------------|
+| `1` | Standard single-column layout |
+| `2` | Two-column layout with sidebar |
+| `3` | Full-width hero layout |
+
+## Image Upload
+
+Featured images are uploaded to Supabase Storage:
+
+```php contenido.php
+$bucket_name = 'contenido';
+
+if (!empty($_FILES['imagen_principal']['tmp_name'])) {
+    $archivo = basename($_FILES['imagen_principal']['name']);
+    $extension = pathinfo($archivo, PATHINFO_EXTENSION);
+    $nombre_seguro = preg_replace('/[^A-Za-z0-9_-]/', '_', pathinfo($archivo, PATHINFO_FILENAME));
+    $nombre_final  = $nombre_seguro . '.' . strtolower($extension);
+    $ruta_supabase = "imagenes/" . $nombre_final;
+    
+    $contenidoArchivo = file_get_contents($_FILES['imagen_principal']['tmp_name']);
+    $res_upload = supabase_request_service('PUT', "/storage/v1/object/contenido/$ruta_supabase", $contenidoArchivo, [
+        "Content-Type: application/octet-stream"
+    ]);
+    
+    if ($res_upload['http'] === 200 || $res_upload['http'] === 201) {
+        $imagenRuta = $ruta_supabase;
+    }
+}
+```
+
+### Storage Path
+
+```
+contenido/
+  └── imagenes/
+      ├── feature1.jpg
+      ├── feature2.png
+      └── feature3.webp
+```
+
+## Hierarchical Categories
+
+Categories support parent-child relationships:
+
+```php contenido.php
+// Fetch categories with hierarchy
+$categoria_data = fetchFromSupabase(
+    "$supabase_url/rest/v1/categoria-servicios?select=id,name,id_padre&order=name.asc"
+);
+
+function buildChildrenMapContenido(array $items) {
+    $map = [];
+    foreach ($items as $it) {
+        $parent = isset($it['id_padre']) && $it['id_padre'] !== null ? $it['id_padre'] : '';
+        if (!isset($map[$parent])) $map[$parent] = [];
+        $map[$parent][] = $it;
+    }
+    foreach ($map as &$list) {
+        usort($list, function($a,$b){ 
+            return strcasecmp($a['name'] ?? '', $b['name'] ?? ''); 
+        });
+    }
+    return $map;
+}
+
+function renderOptionsRecursiveContenido($map, $parent = '', $level = 0) {
+    if (!isset($map[$parent])) return;
+    foreach ($map[$parent] as $it) {
+        $prefix = str_repeat('&nbsp;&nbsp;&nbsp;', $level);
+        echo '<option value="' . htmlspecialchars($it['id']) . '">' . 
+             $prefix . htmlspecialchars($it['name']) . '</option>';
+        renderOptionsRecursiveContenido($map, $it['id'], $level + 1);
+    }
+}
+```
+
+### Category Display
+
+Categories are rendered in a hierarchical dropdown:
+
+```
+Parent Category 1
+   Child Category 1.1
+   Child Category 1.2
+      Grandchild 1.2.1
+Parent Category 2
+   Child Category 2.1
+```
+
+## Content Record Structure
+
+```json
+{
+  "id": 1,
+  "titulo": "About Our Services",
+  "descripcion": {
+    "body": "<p>We provide comprehensive solutions...</p>",
+    "layout": 2
+  },
+  "categoria": 5,
+  "imagen_principal": "imagenes/services_hero.jpg",
+  "created_at": "2024-01-15T10:00:00Z"
+}
+```
+
+## Editing Content
+
+<Steps>
+  <Step title="Select Content">
+    Click the edit button on the content item you want to modify.
+  </Step>
+  
+  <Step title="Update Fields">
+    Modify:
+    - Title
+    - Body text
+    - Layout selection
+    - Category assignment
+    - Featured image (optional replacement)
+  </Step>
+  
+  <Step title="Save Changes">
+    Submit the form to update the database.
+  </Step>
+</Steps>
+
+## Deleting Content
+
+<Warning>
+  Deleting content does not automatically remove the featured image from storage.
+</Warning>
+
+To delete content:
+
+1. Click the delete button
+2. Confirm the action
+3. Content record is permanently removed from the database
+
+## Category Management
+
+Categories are managed in the same module:
+
+### Creating Categories
+
+- **Name**: Category display name
+- **Parent** (`id_padre`): Optional parent category for hierarchy
+- **Slug**: URL-friendly identifier
+
+### Nested Categories
+
+You can create unlimited nesting levels:
+
+```
+Services
+  ├── Web Development
+  │   ├── Frontend
+  │   └── Backend
+  └── Design
+      ├── UI/UX
+      └── Branding
+```
+
+## Database Tables
+
+### Content Table
+
+**Table Name**: `contenido`
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | integer | Primary key |
+| `titulo` | text | Content title |
+| `descripcion` | jsonb | Body and layout |
+| `categoria` | integer | Foreign key to categories |
+| `imagen_principal` | text | Storage path to image |
+| `created_at` | timestamptz | Creation timestamp |
+
+### Categories Table
+
+**Table Name**: `categoria-servicios`
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | integer | Primary key |
+| `name` | text | Category name |
+| `id_padre` | integer | Parent category ID (nullable) |
+| `created_at` | timestamptz | Creation timestamp |
+
+## API Endpoints
+
+### Content
+
+- **GET** `/rest/v1/contenido` - List content
+- **POST** `/rest/v1/contenido` - Create content
+- **PATCH** `/rest/v1/contenido?id=eq.{id}` - Update content
+- **DELETE** `/rest/v1/contenido?id=eq.{id}` - Delete content
+
+### Categories
+
+- **GET** `/rest/v1/categoria-servicios` - List categories
+- **POST** `/rest/v1/categoria-servicios` - Create category
+- **PATCH** `/rest/v1/categoria-servicios?id=eq.{id}` - Update category
+- **DELETE** `/rest/v1/categoria-servicios?id=eq.{id}` - Delete category
+
+## Best Practices
+
+<Tip>
+  Plan your category hierarchy before creating content. Reorganizing later can be complex.
+</Tip>
+
+<Tip>
+  Use consistent layout IDs across similar content types for uniform presentation.
+</Tip>
+
+<Tip>
+  Optimize featured images before upload (recommended: 1200x630px for hero images).
+</Tip>
+
+## Troubleshooting
+
+### Category Validation Error
+
+**Problem**: "Categoría inválida, selecciona desde la lista"
+
+**Solution**: Ensure you're selecting a valid category ID from the dropdown, not typing a custom value.
+
+### Image Upload Fails
+
+**Causes:**
+- File size exceeds limits
+- Invalid file extension
+- Storage bucket permissions
+
+**Solution**: Check PHP `upload_max_filesize` and Supabase Storage bucket policies for the `contenido` bucket.
+
+### JSONB Parsing Errors
+
+**Problem**: Content body not displaying correctly
+
+**Solution**: Verify that the `descripcion` field contains valid JSON with `body` and `layout` keys.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Blog" icon="newspaper" href="/modules/blog">
+    Manage blog posts
+  </Card>
+  <Card title="Dashboard" icon="gauge" href="/modules/dashboard">
+    View content statistics
+  </Card>
+</CardGroup>

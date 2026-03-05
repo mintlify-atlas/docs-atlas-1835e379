@@ -1,0 +1,288 @@
+---
+title: 'Using the Email Builder'
+description: 'Step-by-step guide to creating email templates with the visual builder'
+---
+
+## Getting Started
+
+The Email Builder provides a drag-and-drop interface for creating professional email templates. Access it from **Emails** > **Nueva plantilla** in the CMS.
+
+## Builder Interface
+
+The builder is divided into three main sections:
+
+### Left Sidebar - Configuration & Blocks
+
+**Configuration Panel**
+- Template name
+- Status (Draft/Published)
+- Theme colors (Primary, Secondary, Text, Titles)
+
+**Blocks Palette**
+- Structure blocks (1/2/3 columns)
+- Content blocks (Title, Text, Image, Button, etc.)
+- Elements (Separator, Social media)
+
+### Center Canvas - Workspace
+
+The main design area where you build your email by dragging blocks from the palette.
+
+### Top Actions Bar
+
+- **Vista previa** - Preview your email in a modal
+- **Ver HTML** - View and copy the generated HTML code
+- **Guardar** - Save your template to the database
+
+## Creating an Email Template
+
+<Steps>
+  <Step title="Configure Template Settings">
+    In the left sidebar, enter:
+    - **Template name** - Give your email a descriptive name
+    - **Status** - Choose Draft or Published
+    - **Theme colors** - Set your brand colors
+    
+    ```plaintext
+    Template Name: Holiday Promotion 2026
+    Status: Draft
+    Primary Color: #1a237e (blue)
+    Secondary Color: #e53935 (red)
+    ```
+  </Step>
+  
+  <Step title="Add Row Structure">
+    Click or drag a row layout from the **ESTRUCTURA** section:
+    - **1 Columna** - Full-width content
+    - **2 Columnas** - Side-by-side layout
+    - **3 Columnas** - Three-column grid
+    
+    <Note>
+    You can change the column layout of any row later using the row controls.
+    </Note>
+  </Step>
+  
+  <Step title="Add Content Blocks">
+    Click or drag content blocks from **CONTENIDO** into your columns:
+    - Drag blocks directly onto specific columns
+    - Click blocks to add them to the first available column
+    
+    Each block has its own configuration options that appear when added.
+  </Step>
+  
+  <Step title="Customize Content">
+    Edit each block by clicking on it:
+    - **Text blocks** - Edit content inline with rich text editor
+    - **Images** - Upload from Supabase storage or provide URL
+    - **Buttons** - Set button text and link URL
+    - **Custom blocks** - Configure variables via settings icon
+  </Step>
+  
+  <Step title="Arrange and Style">
+    Use the block controls to refine your layout:
+    - Drag the **grip icon** to reorder blocks within columns
+    - Use **alignment buttons** (left/center/right/justify)
+    - Delete unwanted blocks with the **trash icon**
+  </Step>
+  
+  <Step title="Preview Your Email">
+    Click **Vista previa** to see how your email will look:
+    - Opens in a modal window
+    - Shows the full rendered HTML
+    - Test responsiveness and styling
+  </Step>
+  
+  <Step title="Save Template">
+    Click **Guardar** to save your template:
+    - Stores the JSON structure and HTML to Supabase
+    - Creates a new record or updates existing template
+    - Redirects to the templates list on success
+  </Step>
+</Steps>
+
+## Drag & Drop Functionality
+
+### Adding Rows
+
+Rows define the structure of your email layout:
+
+1. **Click method** - Click a row block in the palette to add it to the canvas
+2. **Drag method** - Drag a row block and drop it onto the canvas
+3. **Empty state** - When the canvas is empty, a helper message guides you
+
+### Adding Content to Columns
+
+Content blocks can be added in two ways:
+
+**Direct drag to column**
+```plaintext
+1. Click and hold a content block (Title, Text, Image, etc.)
+2. Drag over the desired column (column highlights on hover)
+3. Release to drop the block into that column
+```
+
+**Click to add**
+```plaintext
+1. Click a content block in the palette
+2. Block is added to the first available column
+3. If no rows exist, you'll be prompted to add one first
+```
+
+### Reordering Blocks
+
+Blocks can be reordered within columns using drag handles:
+
+1. Hover over a block to reveal the **drag handle** (6 dots icon)
+2. Click and drag the handle to move the block
+3. Drop it in the desired position
+4. The model updates automatically
+
+<Warning>
+Dragging blocks between columns is not currently supported. To move content between columns, delete and recreate the block in the target column.
+</Warning>
+
+## Configuration Options
+
+### Row Configuration
+
+Each row has controls in its header:
+
+- **Layout buttons** - Change between 1, 2, or 3 columns
+- **Delete button** - Remove the entire row and its contents
+- **Drag handle** - Reorder rows by dragging the grip icon
+
+### Block Configuration
+
+Most blocks have these common controls:
+
+**Alignment**
+- Left, Center, Right, Justify buttons at the bottom of each block
+
+**Block-Specific Settings**
+
+<Tabs>
+  <Tab title="Title/Text">
+    - Inline editing with contenteditable
+    - Alignment buttons
+    - Font size selector (16-32px)
+    - FontAwesome icon picker
+    - Color inherited from theme
+  </Tab>
+  
+  <Tab title="Image">
+    - Upload image to Supabase storage
+    - Select from existing images
+    - Image displays as preview
+    - Auto-sized to fit column width
+  </Tab>
+  
+  <Tab title="Button">
+    - Button text input
+    - URL/link input
+    - Background color (uses Primary theme color)
+    - Text color (white by default)
+    - Rounded corners (24px border-radius)
+  </Tab>
+  
+  <Tab title="List">
+    - Textarea for list items (one per line)
+    - Automatic bullet/number formatting
+    - Color inherited from theme
+  </Tab>
+  
+  <Tab title="Custom">
+    - Click gear icon to open configuration modal
+    - Edit variables defined in component
+    - Upload images for image fields
+    - Live preview in modal
+  </Tab>
+</Tabs>
+
+## Exporting to HTML
+
+The Email Builder generates production-ready HTML that can be used in MailChimp, Gmail, or any email platform:
+
+<Steps>
+  <Step title="Generate HTML">
+    Click **Ver HTML** in the actions bar to open the HTML modal
+  </Step>
+  
+  <Step title="Copy or Download">
+    - **Copiar** - Copies HTML to clipboard
+    - **Descargar** - Downloads HTML as a `.html` file
+  </Step>
+  
+  <Step title="Use in MailChimp">
+    In MailChimp:
+    1. Create a new campaign
+    2. Choose "Code your own" template
+    3. Paste the generated HTML
+    4. Test and send
+  </Step>
+</Steps>
+
+### Generated HTML Structure
+
+The HTML follows email best practices:
+
+```html
+<!doctype html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>Email</title>
+</head>
+<body style="margin:0;padding:0;background:#f3f4f6;">
+  <table role="presentation" width="100%" style="background:#f3f4f6;">
+    <tr>
+      <td align="center" style="padding:20px;">
+        <table width="600" style="background:#ffffff;border-radius:6px;">
+          <!-- Email content here -->
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+```
+
+<Note>
+- Fixed 600px width for optimal rendering
+- Table-based layout for email client compatibility
+- All styles are inline
+- Color tokens (primary/secondary) are replaced with actual hex values
+</Note>
+
+## Keyboard Shortcuts
+
+Currently, the Email Builder does not support keyboard shortcuts. All actions are performed through clicking and dragging.
+
+## Tips for Best Results
+
+1. **Keep it simple** - Email clients have limited CSS support; avoid complex layouts
+2. **Test everywhere** - Preview in multiple email clients before sending
+3. **Use web-safe fonts** - Stick to Arial, Helvetica, Georgia, Times New Roman
+4. **Optimize images** - Keep image file sizes small for faster loading
+5. **Mobile-first** - Design with mobile viewing in mind
+6. **Alt text** - Always provide alt text for images
+7. **Clear CTAs** - Make buttons prominent and action-oriented
+
+## Troubleshooting
+
+**Empty canvas won't accept blocks**
+- Refresh the page and try again
+- Check browser console for JavaScript errors
+
+**Preview shows broken layout**
+- Verify all image URLs are publicly accessible
+- Check that color values are valid hex codes
+
+**Cannot save template**
+- Ensure template name is filled in
+- Check that you have a valid session (not logged out)
+- Verify network connection to Supabase
+
+**Drag and drop not working**
+- Ensure SortableJS library is loaded (check browser console)
+- Try refreshing the page
+- Use click method as alternative

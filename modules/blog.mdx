@@ -1,0 +1,348 @@
+---
+title: Blog Management
+description: Create and publish blog posts with categories, images, and rich content
+icon: newspaper
+---
+
+## Overview
+
+The Blog module allows you to create, manage, and publish blog posts for your website. Each post supports hierarchical categorization, featured images, rich text content, and full CRUD operations.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Post Management" icon="pen-to-square">
+    Create, edit, and delete blog posts
+  </Card>
+  <Card title="Category System" icon="tags">
+    Organize posts with hierarchical categories
+  </Card>
+  <Card title="Pagination" icon="list">
+    Browse posts with configurable page sizes
+  </Card>
+  <Card title="Rich Content" icon="text">
+    Support for HTML content and formatting
+  </Card>
+</CardGroup>
+
+## Post Structure
+
+Each blog post includes:
+
+- **Title**: Post headline
+- **Content**: Rich text body (supports HTML)
+- **Category**: Hierarchical category assignment
+- **Featured Image**: Optional post thumbnail/hero image
+- **Author**: Post author information
+- **Publish Date**: Timestamp for scheduling
+- **Status**: Draft or Published
+
+## Creating a Blog Post
+
+<Steps>
+  <Step title="Navigate to Blog">
+    Access the **Posts** section from the sidebar menu.
+  </Step>
+  
+  <Step title="Click 'New Post'">
+    Click the "Crear Post" button to open the post editor.
+  </Step>
+  
+  <Step title="Enter Post Details">
+    Fill in the required fields:
+    - **Title**: Post headline
+    - **Content**: Main post body (HTML supported)
+    - **Category**: Select from hierarchical dropdown
+    - **Featured Image**: Upload post thumbnail
+    - **Status**: Draft or Published
+  </Step>
+  
+  <Step title="Publish or Save Draft">
+    Choose to publish immediately or save as draft for later.
+  </Step>
+</Steps>
+
+## Fetching Posts
+
+Posts are retrieved with pagination:
+
+```php blog.php
+$table_name = 'posts';
+
+$page = intval($_GET['page'] ?? 1);
+$perPage = intval($_GET['rowsPerPage'] ?? 10);
+$offset = ($page - 1) * $perPage;
+
+// Get posts with pagination
+$res_posts = supabase_request('GET', 
+    "$table_name?select=*&order=created_at.desc&limit=$perPage&offset=$offset"
+);
+$posts = ($res_posts['http'] >= 200 && $res_posts['http'] < 300 && is_array($res_posts['json'])) 
+    ? $res_posts['json'] : [];
+
+// Get total count
+$res_total = supabase_request('GET', "$table_name?select=id");
+$total_dec = ($res_total['http'] >= 200 && $res_total['http'] < 300 && is_array($res_total['json'])) 
+    ? $res_total['json'] : [];
+$totalRecords = count($total_dec);
+```
+
+## Category System
+
+Blog posts use the same hierarchical category system as content:
+
+```php blog.php
+// Fetch categories with hierarchy
+$res_cat = supabase_request('GET', 
+    "categoria-servicios?select=id,name,id_padre&order=name.asc"
+);
+$allCategorias = ($res_cat['http'] >= 200 && $res_cat['http'] < 300 && is_array($res_cat['json'])) 
+    ? $res_cat['json'] : [];
+
+function buildChildrenMap(array $items) {
+    $map = [];
+    foreach ($items as $it) {
+        $parent = isset($it['id_padre']) && $it['id_padre'] !== null ? $it['id_padre'] : '';
+        if (!isset($map[$parent])) $map[$parent] = [];
+        $map[$parent][] = $it;
+    }
+    foreach ($map as &$list) {
+        usort($list, function($a, $b){
+            return strcasecmp($a['name'] ?? '', $b['name'] ?? '');
+        });
+    }
+    return $map;
+}
+
+function renderOptionsRecursive($map, $parent = '', $level = 0) {
+    if (!isset($map[$parent])) return;
+    foreach ($map[$parent] as $it) {
+        $prefix = str_repeat('&nbsp;&nbsp;&nbsp;', $level);
+        echo '<option value="' . htmlspecialchars($it['id']) . '">' . 
+             $prefix . htmlspecialchars($it['name']) . '</option>';
+        renderOptionsRecursive($map, $it['id'], $level + 1);
+    }
+}
+
+$childrenMap = buildChildrenMap($allCategorias);
+```
+
+### Category Dropdown Display
+
+Categories are rendered hierarchically in the post editor:
+
+```
+News
+   Company News
+   Industry Updates
+Tutorials
+   Beginner
+   Advanced
+      Expert Tips
+```
+
+## Post Listing
+
+Posts are displayed in reverse chronological order (newest first):
+
+- **Title** and excerpt
+- **Category** badge
+- **Author** and publish date
+- **Status** indicator (Draft/Published)
+- **Edit** and **Delete** actions
+
+### Pagination Controls
+
+```php blog.php
+$totalPages = $perPage > 0 ? ceil($totalRecords / $perPage) : 1;
+```
+
+**Features:**
+- Previous/Next navigation
+- Page number links
+- Rows per page selector (5, 10, 20, 50)
+- Current page indicator
+
+## Post Editor
+
+The post editor supports:
+
+- **Rich Text**: HTML formatting
+- **Media Embedding**: Images, videos
+- **Code Blocks**: Syntax highlighting
+- **Links**: Internal and external
+- **Lists**: Ordered and unordered
+
+<Info>
+  The blog editor supports full HTML, allowing you to embed custom elements and styles.
+</Info>
+
+## Publishing Workflow
+
+<Tabs>
+  <Tab title="Draft Mode">
+    1. Create post
+    2. Save as draft
+    3. Review and edit
+    4. Publish when ready
+  </Tab>
+  <Tab title="Immediate Publish">
+    1. Create post
+    2. Fill all fields
+    3. Set status to Published
+    4. Post goes live immediately
+  </Tab>
+</Tabs>
+
+## Post Record Structure
+
+```json
+{
+  "id": 1,
+  "title": "Getting Started with Grupo Mecsa CMS",
+  "content": "<p>Welcome to our comprehensive guide...</p>",
+  "categoria": 3,
+  "featured_image": "posts/getting-started.jpg",
+  "author": "John Doe",
+  "status": "published",
+  "created_at": "2024-01-20T10:00:00Z",
+  "updated_at": "2024-01-20T14:30:00Z"
+}
+```
+
+## Editing Posts
+
+<Steps>
+  <Step title="Select Post">
+    Click the edit button on the post you want to modify.
+  </Step>
+  
+  <Step title="Make Changes">
+    Update any field:
+    - Title
+    - Content
+    - Category
+    - Featured image
+    - Status
+  </Step>
+  
+  <Step title="Save Changes">
+    Submit the form to update the post.
+  </Step>
+</Steps>
+
+## Deleting Posts
+
+<Warning>
+  Deleting a post is permanent and cannot be undone. The featured image will remain in storage.
+</Warning>
+
+To delete a post:
+
+1. Click the delete button
+2. Confirm the deletion
+3. Post is permanently removed from the database
+
+## Database Table
+
+**Table Name**: `posts`
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | integer | Primary key |
+| `title` | text | Post title |
+| `content` | text | Post body (HTML) |
+| `categoria` | integer | Category ID |
+| `featured_image` | text | Image storage path |
+| `author` | text | Author name |
+| `status` | text | Draft or Published |
+| `created_at` | timestamptz | Creation timestamp |
+| `updated_at` | timestamptz | Last update timestamp |
+
+## API Endpoints
+
+- **GET** `/rest/v1/posts` - List posts
+- **GET** `/rest/v1/posts?select=*&order=created_at.desc&limit=10&offset=0` - Paginated posts
+- **POST** `/rest/v1/posts` - Create post
+- **PATCH** `/rest/v1/posts?id=eq.{id}` - Update post
+- **DELETE** `/rest/v1/posts?id=eq.{id}` - Delete post
+
+## SEO Considerations
+
+For better search engine optimization:
+
+- Use descriptive, keyword-rich titles
+- Include meta descriptions in post content
+- Optimize featured images (alt text, file size)
+- Use proper heading hierarchy (H1, H2, H3)
+- Add internal links to related posts
+
+<Tip>
+  Keep post URLs clean and descriptive by using slug-friendly titles.
+</Tip>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Content Quality" icon="star">
+    Write engaging, valuable content for your audience
+  </Card>
+  <Card title="Consistent Publishing" icon="calendar">
+    Maintain a regular posting schedule
+  </Card>
+  <Card title="Image Optimization" icon="image">
+    Compress images before upload for faster loading
+  </Card>
+  <Card title="Category Organization" icon="folder-tree">
+    Use clear, logical category structures
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+### Post Not Displaying
+
+**Problem**: Published post not showing on website
+
+**Possible causes:**
+- Status still set to "Draft"
+- Caching issues
+- Category permissions
+
+**Solution**: Verify post status is "Published" and clear site cache.
+
+### Image Upload Issues
+
+**Problem**: Featured image fails to upload
+
+**Solutions:**
+- Check file size limits (`upload_max_filesize`)
+- Verify file format (JPEG, PNG, WebP)
+- Check Supabase Storage bucket permissions
+
+### Category Selection Error
+
+**Problem**: "Selecciona una categoría válida"
+
+**Solution**: Ensure a category is selected from the dropdown before submitting.
+
+## Related JavaScript
+
+Blog functionality is enhanced by `mainblog.js`:
+
+- Post creation forms
+- WYSIWYG editor integration
+- Image upload handling
+- Draft auto-save
+- Preview functionality
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Content" icon="file-lines" href="/modules/content">
+    Manage general content
+  </Card>
+  <Card title="Dashboard" icon="gauge" href="/modules/dashboard">
+    View blog statistics
+  </Card>
+</CardGroup>

@@ -1,0 +1,741 @@
+---
+title: 'Supabase Class'
+description: 'Complete PHP SDK reference for Supabase integration'
+---
+
+## Overview
+
+The `Supabase` class provides a PHP interface to interact with Supabase authentication and database operations. It handles environment detection, request formatting, and supports both Windows and Linux platforms.
+
+**File:** `supabase.php`
+
+## Constructor
+
+```php
+public function __construct()
+```
+
+Initializes the Supabase client with automatic environment detection.
+
+**Behavior:**
+
+- Detects production environment (checks for `grupomecsa.net` in hostname)
+- Loads local configuration in development (`local.supabase.php`)
+- Sets default Supabase URL and API key
+
+**Example:**
+
+```php
+require_once 'supabase.php';
+
+$supabase = new Supabase();
+```
+
+**Configuration:**
+
+```php
+// Default values
+$this->url = 'https://awhuzekjpoapamijlvua.supabase.co';
+$this->apiKey = 'sb_publishable_G6dRjvRfALqwuYaG1kew7w_Xud8hTgb';
+
+// Override with local.supabase.php in development:
+// $supabase_url = 'https://your-project.supabase.co';
+// $supabase_key = 'your-anon-key';
+```
+
+---
+
+## Authentication Methods
+
+### login()
+
+Authenticate a user with email and password.
+
+```php
+public function login(string $email, string $password): array
+```
+
+**Parameters:**
+
+<ParamField path="email" type="string" required>
+  User email address
+</ParamField>
+
+<ParamField path="password" type="string" required>
+  User password
+</ParamField>
+
+**Returns:**
+
+```php
+array [
+  'access_token' => string,
+  'token_type' => 'bearer',
+  'expires_in' => int,
+  'refresh_token' => string,
+  'user' => array
+]
+```
+
+**Example:**
+
+```php
+$supabase = new Supabase();
+
+try {
+    $result = $supabase->login('user@grupomecsa.net', 'password123');
+    
+    $accessToken = $result['access_token'];
+    $user = $result['user'];
+    
+    $_SESSION['token'] = $accessToken;
+    $_SESSION['user'] = $user;
+    $_SESSION['email'] = $user['email'];
+    
+    echo "Login successful!";
+} catch (Exception $e) {
+    echo "Login failed: " . $e->getMessage();
+}
+```
+
+**User Object:**
+
+```php
+[
+  'id' => 'uuid',
+  'email' => 'user@grupomecsa.net',
+  'user_metadata' => [
+    'requires_password_change' => false,
+    // ... other metadata
+  ],
+  'created_at' => '2024-01-01T00:00:00Z',
+  'updated_at' => '2024-01-01T00:00:00Z'
+]
+```
+
+---
+
+### updatePassword()
+
+Update the password for the currently authenticated user.
+
+```php
+public function updatePassword(string $token, string $newPassword): array
+```
+
+**Parameters:**
+
+<ParamField path="token" type="string" required>
+  User's access token
+</ParamField>
+
+<ParamField path="newPassword" type="string" required>
+  New password to set
+</ParamField>
+
+**Returns:**
+
+```php
+array [
+  'user' => array,
+  // Updated user object
+]
+```
+
+**Example:**
+
+```php
+$token = $_SESSION['token'];
+$newPassword = 'newSecurePassword123';
+
+try {
+    $result = $supabase->updatePassword($token, $newPassword);
+    echo "Password updated successfully";
+} catch (Exception $e) {
+    echo "Error: " . $e->getMessage();
+}
+```
+
+<Warning>
+  The user must be authenticated with a valid token. This method updates the password for the token owner.
+</Warning>
+
+---
+
+### resetPasswordChangeFlag()
+
+Reset the `requires_password_change` flag in user metadata. **Admin only.**
+
+```php
+public function resetPasswordChangeFlag(string $userId, string $serviceRoleKey): array
+```
+
+**Parameters:**
+
+<ParamField path="userId" type="string" required>
+  UUID of the user to update
+</ParamField>
+
+<ParamField path="serviceRoleKey" type="string" required>
+  Service role key (admin privileges)
+</ParamField>
+
+**Returns:**
+
+```php
+array [
+  'user' => array
+  // Updated user object with metadata
+]
+```
+
+**Example:**
+
+```php
+$userId = '550e8400-e29b-41d4-a716-446655440000';
+$serviceRoleKey = 'sb_secret_C-Z-MttzHCPnOR1y2Py4rw_VSsTvV_w';
+
+$result = $supabase->resetPasswordChangeFlag($userId, $serviceRoleKey);
+```
+
+<Warning>
+  Requires **service role key** which bypasses Row Level Security. Use with caution.
+</Warning>
+
+---
+
+### resendConfirmation()
+
+Resend the signup confirmation email to a user.
+
+```php
+public function resendConfirmation(string $email): array
+```
+
+**Parameters:**
+
+<ParamField path="email" type="string" required>
+  Email address to send confirmation to
+</ParamField>
+
+**Returns:**
+
+```php
+array [
+  'body' => string,
+  'http' => int
+]
+```
+
+**Example:**
+
+```php
+try {
+    $result = $supabase->resendConfirmation('user@grupomecsa.net');
+    
+    if ($result['http'] === 200) {
+        echo "Confirmation email sent successfully";
+    } else {
+        echo "Error sending confirmation";
+    }
+} catch (Exception $e) {
+    echo "Error: " . $e->getMessage();
+}
+```
+
+---
+
+### generateRecoveryLink()
+
+Generate a password recovery link for a user. **Admin only.**
+
+```php
+public function generateRecoveryLink(string $email, string $redirectTo = ''): string
+```
+
+**Parameters:**
+
+<ParamField path="email" type="string" required>
+  User email to generate recovery link for
+</ParamField>
+
+<ParamField path="redirectTo" type="string">
+  URL to redirect to after recovery (optional)
+</ParamField>
+
+**Returns:**
+
+```php
+string // Recovery link URL
+```
+
+**Example:**
+
+```php
+try {
+    $recoveryLink = $supabase->generateRecoveryLink(
+        'user@grupomecsa.net',
+        'https://cms.grupomecsa.net/reset-password'
+    );
+    
+    echo "Recovery link: " . $recoveryLink;
+    
+    // Send via email
+    mail($email, 'Password Recovery', "Click here: $recoveryLink");
+    
+} catch (Exception $e) {
+    echo "Error: " . $e->getMessage();
+}
+```
+
+**Throws:**
+
+- `Exception` if the operation fails or service role key is missing
+
+<Warning>
+  This method requires the `$supabase_service_role` global variable to be set (typically in `local.supabase.php`).
+</Warning>
+
+---
+
+## Database Methods
+
+### getData()
+
+Retrieve all records from a table.
+
+```php
+public function getData(string $table, ?string $token = null): array
+```
+
+**Parameters:**
+
+<ParamField path="table" type="string" required>
+  Table name to query
+</ParamField>
+
+<ParamField path="token" type="string">
+  Access token for authentication (optional, uses API key if not provided)
+</ParamField>
+
+**Returns:**
+
+```php
+array // Array of records
+```
+
+**Example:**
+
+```php
+$token = $_SESSION['token'];
+
+// Get all employees
+$employees = $supabase->getData('Empleados', $token);
+
+foreach ($employees as $emp) {
+    echo $emp['nombre'] . ' - ' . $emp['rol'] . '<br>';
+}
+
+// Get without token (uses API key - subject to RLS)
+$publicData = $supabase->getData('public_content');
+```
+
+**Query URL:**
+
+```
+GET /rest/v1/{table}?select=*
+```
+
+<Info>
+  By default, queries use the `cms` schema. The method selects all columns (`select=*`).
+</Info>
+
+---
+
+### insertData()
+
+Insert a new record into a table.
+
+```php
+public function insertData(string $table, array $data, ?string $token = null): array
+```
+
+**Parameters:**
+
+<ParamField path="table" type="string" required>
+  Table name to insert into
+</ParamField>
+
+<ParamField path="data" type="array" required>
+  Data object to insert (associative array)
+</ParamField>
+
+<ParamField path="token" type="string">
+  Access token for authentication (optional)
+</ParamField>
+
+**Returns:**
+
+```php
+array // Inserted record (if Prefer: return=representation)
+```
+
+**Example:**
+
+```php
+$token = $_SESSION['token'];
+
+$newEmployee = [
+    'nombre' => 'Juan Pérez',
+    'email' => 'juan.perez@grupomecsa.net',
+    'rol' => 'ventas',
+    'departamento' => 'Ventas',
+    'activo' => true,
+    'sistemas_acceso' => ['CMS']
+];
+
+try {
+    $result = $supabase->insertData('Empleados', $newEmployee, $token);
+    echo "Employee created with ID: " . $result['id'];
+} catch (Exception $e) {
+    echo "Error: " . $e->getMessage();
+}
+```
+
+**Request:**
+
+```
+POST /rest/v1/{table}
+Content-Type: application/json
+
+{data}
+```
+
+---
+
+## Private Methods
+
+### _request()
+
+Core method for making authenticated REST API requests.
+
+```php
+private function _request(
+    string $method, 
+    string $path, 
+    ?array $body = null, 
+    ?string $token = null, 
+    string $schema = 'cms'
+): array
+```
+
+**Parameters:**
+
+- `$method` - HTTP method (GET, POST, PATCH, PUT, DELETE)
+- `$path` - API endpoint path
+- `$body` - Request body (optional)
+- `$token` - Access token (optional, uses API key if not provided)
+- `$schema` - Schema profile (default: 'cms')
+
+**Headers:**
+
+```php
+[
+    "apikey: {apikey}",
+    "Authorization: Bearer {token}",
+    "Content-Type: application/json",
+    "Accept-Profile: {schema}",
+    "Content-Profile: {schema}"
+]
+```
+
+**Platform Detection:**
+
+- **Windows**: Uses `curl.exe` via `shell_exec()`
+- **Linux**: Uses PHP `curl_*` functions
+
+---
+
+### _execute_auth_request()
+
+Execute authentication-specific requests.
+
+```php
+private function _execute_auth_request(
+    string $url, 
+    string $method, 
+    ?array $data = null, 
+    array $headers = []
+): array
+```
+
+**Returns:**
+
+```php
+[
+    'body' => string,  // Response body
+    'http' => int      // HTTP status code
+]
+```
+
+**Used by:**
+
+- `login()`
+- `resendConfirmation()`
+- `generateRecoveryLink()`
+
+---
+
+## Configuration Functions
+
+The `config/supabase.php` file provides helper functions:
+
+### supabase_request()
+
+Make a request using the publishable API key.
+
+```php
+function supabase_request(
+    string $method, 
+    string $path, 
+    ?array $body = null, 
+    array $headers = []
+): array
+```
+
+**Example:**
+
+```php
+$result = supabase_request('GET', 'Empleados?select=*');
+```
+
+---
+
+### supabase_request_service()
+
+Make a request using the service role key (bypasses RLS).
+
+```php
+function supabase_request_service(
+    string $method, 
+    string $path, 
+    ?array $body = null, 
+    array $headers = []
+): array
+```
+
+**Example:**
+
+```php
+// Admin operation - bypasses Row Level Security
+$result = supabase_request_service(
+    'PATCH', 
+    'Empleados?id=eq.' . $id,
+    ['rol' => 'administrador']
+);
+```
+
+<Warning>
+  Service role requests bypass all Row Level Security policies. Use only for admin operations.
+</Warning>
+
+---
+
+### supabase_raw_curl()
+
+Low-level cURL wrapper for custom requests.
+
+```php
+function supabase_raw_curl(
+    string $method, 
+    string $path, 
+    string $key, 
+    ?array $body = null, 
+    array $extraHeaders = []
+): array
+```
+
+**Returns:**
+
+```php
+[
+    'http' => int,      // HTTP status code
+    'body' => string,   // Raw response body
+    'json' => ?array,   // Decoded JSON (if valid)
+    'error' => ?string  // Error message (if failed)
+]
+```
+
+**Example:**
+
+```php
+$result = supabase_raw_curl(
+    'GET',
+    'Empleados?rol=eq.ventas',
+    $supabase_key,
+    null,
+    ['Accept-Profile: public']
+);
+
+if ($result['http'] === 200) {
+    $employees = $result['json'];
+} else {
+    echo "Error: " . $result['error'];
+}
+```
+
+---
+
+## Environment Variables
+
+```php
+$supabase_url = getenv('SUPABASE_URL') ?: 'default_url';
+$supabase_key = getenv('SUPABASE_KEY') ?: 'default_key';
+$supabase_service_role = getenv('SUPABASE_SERVICE_ROLE') ?: 'default_service_key';
+$supabase_schema = 'cms';
+```
+
+**Recommended `.env` setup:**
+
+```bash
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE=your-service-role-key
+```
+
+---
+
+## Error Handling
+
+### Common Error Codes
+
+| HTTP Code | Meaning | Common Cause |
+|-----------|---------|-------------|
+| 401 | Unauthorized | Invalid or expired token |
+| 403 | Forbidden | Insufficient permissions / RLS policy violation |
+| 404 | Not Found | Table or record doesn't exist |
+| 422 | Unprocessable | Invalid data format or constraint violation |
+| 500 | Server Error | Supabase service error |
+
+### Error Response Format
+
+```php
+[
+    'code' => '42501',
+    'message' => 'new row violates row-level security policy',
+    'details' => null,
+    'hint' => null
+]
+```
+
+### Try-Catch Pattern
+
+```php
+try {
+    $result = $supabase->login($email, $password);
+    
+    if (!isset($result['access_token'])) {
+        throw new Exception('Login failed: No token received');
+    }
+    
+    $_SESSION['token'] = $result['access_token'];
+    
+} catch (Exception $e) {
+    error_log('Login error: ' . $e->getMessage());
+    
+    http_response_code(401);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Authentication failed'
+    ]);
+}
+```
+
+---
+
+## Platform Compatibility
+
+### Windows (XAMPP/WAMP)
+
+- Uses `curl.exe` via `shell_exec()`
+- Includes `--ssl-no-revoke` flag for SSL issues
+- Writes request body to temp files
+
+### Linux (Production)
+
+- Uses native PHP `curl_*` functions
+- Standard SSL verification
+- Direct JSON encoding
+
+### Detection
+
+```php
+$isWindows = (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN');
+```
+
+---
+
+## Complete Usage Example
+
+```php
+<?php
+require_once 'supabase.php';
+
+session_start();
+
+$supabase = new Supabase();
+
+// Step 1: Authenticate
+if (!isset($_SESSION['token'])) {
+    try {
+        $auth = $supabase->login('admin@grupomecsa.net', 'admin123');
+        $_SESSION['token'] = $auth['access_token'];
+        $_SESSION['user'] = $auth['user'];
+    } catch (Exception $e) {
+        die('Login failed: ' . $e->getMessage());
+    }
+}
+
+$token = $_SESSION['token'];
+
+// Step 2: Fetch data
+$employees = $supabase->getData('Empleados', $token);
+
+echo "<h2>Employees</h2>";
+foreach ($employees as $emp) {
+    echo "<p>{$emp['nombre']} - {$emp['rol']}</p>";
+}
+
+// Step 3: Insert new record
+$newEmployee = [
+    'nombre' => 'María García',
+    'email' => 'maria@grupomecsa.net',
+    'rol' => 'mercadeo',
+    'activo' => true
+];
+
+$result = $supabase->insertData('Empleados', $newEmployee, $token);
+echo "<p>New employee created: {$result['nombre']}</p>";
+
+// Step 4: Admin operation - Generate recovery link
+if ($_SESSION['user']['email'] === 'admin@grupomecsa.net') {
+    try {
+        $recoveryLink = $supabase->generateRecoveryLink(
+            'user@grupomecsa.net',
+            'https://cms.grupomecsa.net/reset'
+        );
+        echo "<p>Recovery link: <a href='$recoveryLink'>Reset Password</a></p>";
+    } catch (Exception $e) {
+        echo "<p>Error: {$e->getMessage()}</p>";
+    }
+}
+?>
+```
+
+---
+
+## Related
+
+- [Authentication Guide](/api/authentication) - Detailed authentication flow
+- [Admin Roles API](/api/endpoints/admin-roles) - Using the SDK with role management
+- [Employee Role API](/api/endpoints/employee-role) - Employee management examples

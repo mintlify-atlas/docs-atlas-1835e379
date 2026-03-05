@@ -1,80 +1,148 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: 'Quickstart Guide'
+description: 'Get up and running with Grupo Mecsa CMS in minutes'
+icon: 'rocket'
 ---
 
-## Get started in three steps
+## Welcome to Grupo Mecsa CMS
 
-Get your documentation site running locally and make your first customization.
+Grupo Mecsa CMS is a comprehensive content management system designed for Grupo Mecsa's internal operations. It provides powerful features for managing users, clients, projects, emails, blog posts, and more, all integrated with Supabase for secure authentication and data storage.
 
-### Step 1: Set up your local environment
+## Quick Setup
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+Get your CMS up and running in just a few steps:
+
+<Steps>
+  <Step title="Install Dependencies">
+    Make sure you have XAMPP (or similar Apache/PHP environment) and Composer installed on your system.
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    Clone the repository and install PHP dependencies:
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+    ```bash
+    git clone <repo-url> GrupoMecsaCMS
+    cd GrupoMecsaCMS
+    composer install
+    ```
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    This will install the required Guzzle HTTP client library for API communications.
+  </Step>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+  <Step title="Configure Supabase">
+    Create or update your `config/supabase.php` file with your Supabase credentials:
+    
+    ```php
+    <?php
+    global $supabase_url, $supabase_key, $supabase_service_role, $supabase_schema;
+    
+    $supabase_url = 'https://your-project.supabase.co';
+    $supabase_key = 'your-anon-public-key';
+    $supabase_service_role = 'your-service-role-key';
+    $supabase_schema = 'cms';
+    ?>
+    ```
+    
+    <Note>
+      For local development, you can create a `local.supabase.php` file that will override the default configuration without being tracked in git.
+    </Note>
+  </Step>
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+  <Step title="Setup Database">
+    Import the database schema from the SQL files in the `docs/` directory:
+    
+    - `sql_cms_pages.sql` - Pages system
+    - `sql_cms_templates.sql` - Template management
+    - `sql_cms_menus.sql` - Menu structure
+    - `sql_cms_media_library.sql` - Media library
+    - Other SQL files for additional features
+    
+    Execute these in your Supabase SQL editor to create the necessary tables and schemas.
+  </Step>
 
-### Step 3: Go live
+  <Step title="Start the Server">
+    Start your Apache server through XAMPP and navigate to:
+    
+    ```
+    http://localhost/GrupoMecsaCMS
+    ```
+    
+    You'll be redirected to the login page automatically.
+  </Step>
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+  <Step title="First Login">
+    Log in with your Supabase user credentials. The system will:
+    
+    1. Authenticate against Supabase Auth
+    2. Verify your email is confirmed
+    3. Check if you have CMS access in the `Empleados` table
+    4. Load your role and permissions
+    5. Redirect you to the dashboard
+    
+    ```php
+    // Login credentials are verified through Supabase Auth
+    $login = $supa->login($email, $pass);
+    ```
+    
+    <Warning>
+      Only users with CMS access in their `sistemas_acceso` field will be granted entry. Make sure your user account has the appropriate permissions set.
+    </Warning>
+  </Step>
+</Steps>
 
-## Next steps
+## What's Next?
 
-Now that you have your docs running, explore these key features:
+Now that you're set up, explore the key features:
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="User Management" icon="users" href="/users/authentication">
+    Manage users, roles, and permissions
+  </Card>
+  
+  <Card title="Email Builder" icon="envelope" href="/email/overview">
+    Create visual email templates with drag-and-drop
+  </Card>
+  
+  <Card title="Content Management" icon="file-text" href="/modules/content">
+    Manage pages, blog posts, and dynamic content
+  </Card>
+  
+  <Card title="Dashboard" icon="gauge" href="/modules/dashboard">
+    View analytics and system overview
+  </Card>
 </CardGroup>
 
+## System Overview
+
+The CMS is organized into several key modules:
+
+- **Dashboard** - Overview of system activity and quick access
+- **Users** - Employee and user management with role-based access
+- **Clients** - Client relationship management
+- **Projects** - Project tracking and management
+- **Email Builder** - Visual email template creator
+- **Blog** - Blog post management with categories
+- **Pages** - Static and dynamic page management
+- **Media** - File and image library
+- **Settings** - System configuration and SEO settings
+
+## Key Features
+
+- Role-based access control (Admin, Comercial, Proyecto)
+- Visual email builder compatible with Mailchimp/Gmail
+- CRUD operations for all modules
+- Pagination and filtering in all listings
+- SEO optimization tools
+- Content versioning
+- Template system with dynamic regions
+- Media library with folder organization
+
+## Getting Help
+
+If you encounter any issues:
+
+1. Check the [Installation Guide](/installation) for detailed setup instructions
+2. Review the installation troubleshooting section for common issues
+3. Consult the module-specific documentation for feature details
+
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  This system is for internal use by Grupo Mecsa authorized personnel only. Keep your credentials secure and never commit sensitive configuration files to version control.
 </Note>

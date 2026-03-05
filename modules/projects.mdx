@@ -1,0 +1,291 @@
+---
+title: Project Management
+description: Track client projects with photos, categories, and detailed metadata
+icon: diagram-project
+---
+
+## Overview
+
+The Projects module helps you organize and track client projects throughout their lifecycle. Each project can include multiple photos, category classification, client association, and detailed project information.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Multi-Photo Upload" icon="images">
+    Upload and store multiple project photos in Supabase Storage
+  </Card>
+  <Card title="Client Linking" icon="link">
+    Associate projects with clients from your directory
+  </Card>
+  <Card title="Category Organization" icon="folder-tree">
+    Categorize projects for better organization and filtering
+  </Card>
+  <Card title="Full CRUD" icon="database">
+    Create, read, update, and delete project records
+  </Card>
+</CardGroup>
+
+## Creating a New Project
+
+<Steps>
+  <Step title="Navigate to Projects">
+    Access the Projects module from the sidebar menu.
+  </Step>
+  
+  <Step title="Click 'New Project'">
+    Click the "Crear Proyecto" button to open the project creation form.
+  </Step>
+  
+  <Step title="Fill Project Details">
+    Required fields:
+    - **Name** (`nombre`): Project title or name
+    - **Client** (`cliente`): Select from existing clients
+    - **Category** (`categoria`): Project category ID
+    - **Photos** (`fotos`): Upload one or more images
+    
+    Optional fields:
+    - Additional project metadata
+  </Step>
+  
+  <Step title="Submit the Form">
+    The system will:
+    - Generate the next project ID
+    - Upload photos to category-specific folders
+    - Create the project record in the database
+  </Step>
+</Steps>
+
+## Photo Upload System
+
+Project photos are stored in Supabase Storage with organized paths based on category:
+
+```php proyectos.php
+$bucket = "clientes";
+$fotos_urls = [];
+
+if (!empty($_FILES['fotos']['name'][0])) {
+    foreach ($_FILES['fotos']['name'] as $index => $nombre_archivo) {
+        if ($_FILES['fotos']['error'][$index] === UPLOAD_ERR_OK) {
+            // Get category name for bucket path
+            $categoria_name_for_bucket = 'general';
+            if (isset($categoria_map[$selected_cat_id]) && !empty($categoria_map[$selected_cat_id]['name'])) {
+                $categoria_name_for_bucket = $categoria_map[$selected_cat_id]['name'];
+            }
+            $categoria_segura = preg_replace('/[^A-Za-z0-9_-]/', '_', strtolower($categoria_name_for_bucket));
+            $nombre_seguro = preg_replace('/[^A-Za-z0-9_.-]/', '_', basename($nombre_archivo));
+            $ruta_supabase = "$categoria_segura/proyectos/$nombre_seguro";
+            
+            $contenido = file_get_contents($_FILES['fotos']['tmp_name'][$index]);
+            
+            $ch = curl_init();
+            curl_setopt_array($ch, [
+                CURLOPT_URL => "$supabase_url/storage/v1/object/$bucket/$ruta_supabase",
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_CUSTOMREQUEST => "PUT",
+                CURLOPT_POSTFIELDS => $contenido,
+                CURLOPT_HTTPHEADER => [
+                    "apikey: $supabase_key",
+                    "Authorization: Bearer $supabase_key",
+                    "Content-Type: application/octet-stream"
+                ]
+            ]);
+            $upload_response = curl_exec($ch);
+            $upload_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            
+            if ($upload_code === 200 || $upload_code === 201) {
+                $fotos_urls[] = $ruta_supabase;
+            }
+        }
+    }
+}
+```
+
+### Storage Structure
+
+```
+clientes/
+  ├── categoria1/
+  │   └── proyectos/
+  │       ├── project1_photo1.jpg
+  │       ├── project1_photo2.jpg
+  │       └── project2_photo1.png
+  └── categoria2/
+      └── proyectos/
+          └── project3_photo1.jpg
+```
+
+## Project ID Generation
+
+Projects use auto-incrementing IDs:
+
+```php proyectos.php
+// Get last project ID
+$res_ultimo = supabase_request('GET', "$table_name?select=id&order=id.desc&limit=1");
+$ultimoProyecto = ($res_ultimo['http'] >= 200 && $res_ultimo['http'] < 300 && is_array($res_ultimo['json'])) ? $res_ultimo['json'] : [];
+$ultimoId = !empty($ultimoProyecto) ? intval($ultimoProyecto[0]['id']) : 0;
+$nuevoId = $ultimoId + 1;
+```
+
+## Project Record Structure
+
+```json
+{
+  "id": 1,
+  "nombre": "Website Redesign",
+  "cliente": "Company ABC",
+  "categoria": 3,
+  "fotos": [
+    "web_design/proyectos/mockup1.jpg",
+    "web_design/proyectos/mockup2.jpg"
+  ],
+  "created_at": "2024-01-20T14:30:00Z"
+}
+```
+
+## Pagination
+
+Project listings support pagination:
+
+```php proyectos.php
+$page = intval($_GET['page'] ?? 1);
+$perPage = intval($_GET['rowsPerPage'] ?? 10);
+$offset = ($page - 1) * $perPage;
+```
+
+**Configuration:**
+- **Default rows per page**: 10
+- **URL parameters**: `?page=2&rowsPerPage=20`
+- **User configurable**: Yes
+
+## Viewing Projects
+
+Project details include:
+
+- **Basic Info**: Name, client, category
+- **Photo Gallery**: All uploaded project images
+- **Timestamps**: Creation and modification dates
+- **Metadata**: Any additional project details
+
+<Info>
+  Projects are displayed in reverse chronological order by default (newest first).
+</Info>
+
+## Editing Projects
+
+<Steps>
+  <Step title="Select Project">
+    Click the edit button on the project you want to modify.
+  </Step>
+  
+  <Step title="Update Information">
+    Modify any of the following:
+    - Project name
+    - Client association
+    - Category assignment
+    - Add or remove photos
+  </Step>
+  
+  <Step title="Save Changes">
+    Submit the form to update the database record.
+  </Step>
+</Steps>
+
+## Deleting Projects
+
+<Warning>
+  Deleting a project does not automatically remove associated photos from Supabase Storage. Consider implementing cleanup routines.
+</Warning>
+
+To delete a project:
+
+1. Click the delete button
+2. Confirm the deletion
+3. The project record is permanently removed
+
+## Client Integration
+
+Projects are linked to clients in the [Clients module](/modules/clients). When viewing a client, you can filter to see all their associated projects.
+
+### Client Selection
+
+When creating a project, select from the dropdown of existing clients. The client name is stored as a string reference in the project record.
+
+## Category Organization
+
+Projects must be assigned to a category. Categories are managed in the Content module and help organize projects by:
+
+- Service type (Web Design, Branding, Development)
+- Industry sector
+- Project scope
+- Custom classifications
+
+## Database Table
+
+**Table Name**: `Proyectos`
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | integer | Auto-incrementing primary key |
+| `nombre` | text | Project name/title |
+| `cliente` | text | Client name reference |
+| `categoria` | integer | Category ID |
+| `fotos` | text[] | Array of storage paths |
+| `created_at` | timestamptz | Creation timestamp |
+
+## API Endpoints
+
+The Projects module uses Supabase REST API:
+
+- **GET** `/rest/v1/Proyectos` - List projects
+- **POST** `/rest/v1/Proyectos` - Create project
+- **PATCH** `/rest/v1/Proyectos?id=eq.{id}` - Update project
+- **DELETE** `/rest/v1/Proyectos?id=eq.{id}` - Delete project
+
+## Best Practices
+
+<Tip>
+  Optimize images before upload to reduce storage costs and improve page load times.
+</Tip>
+
+<Tip>
+  Use descriptive project names that include the client name for easier searching.
+</Tip>
+
+<Tip>
+  Regularly audit and remove unused photos from Supabase Storage to manage costs.
+</Tip>
+
+## Troubleshooting
+
+### Photo Upload Fails
+
+**Causes:**
+- File size exceeds limits
+- Invalid file format
+- Storage bucket permissions
+
+**Solution**: Check PHP `upload_max_filesize`, `post_max_size`, and Supabase Storage policies.
+
+### Category Not Found
+
+**Problem**: "Selecciona una categoría válida" error
+
+**Solution**: Ensure the selected category ID exists in the `categoria-servicios` table.
+
+### Client Association Issues
+
+**Problem**: Client name not displaying
+
+**Solution**: Verify the client name exactly matches a record in the `clientes` table.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Clients" icon="users" href="/modules/clients">
+    Manage client directory
+  </Card>
+  <Card title="Dashboard" icon="gauge" href="/modules/dashboard">
+    View project statistics
+  </Card>
+</CardGroup>

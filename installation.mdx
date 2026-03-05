@@ -1,0 +1,448 @@
+---
+title: 'Installation Guide'
+description: 'Complete installation and configuration guide for Grupo Mecsa CMS'
+icon: 'download'
+---
+
+## System Requirements
+
+Before installing Grupo Mecsa CMS, ensure your system meets these requirements:
+
+### Required Software
+
+- **PHP**: Version 7.4 or higher (8.0+ recommended)
+- **Apache**: 2.4 or higher (included in XAMPP)
+- **Composer**: Latest version for dependency management
+- **Supabase Account**: Active project with database access
+
+### Recommended Environment
+
+<Info>
+  **XAMPP** is the recommended local development environment for Windows users. It includes Apache, PHP, and all necessary components pre-configured.
+</Info>
+
+### PHP Extensions
+
+The following PHP extensions must be enabled:
+
+- `curl` - For HTTP requests to Supabase API
+- `json` - For JSON encoding/decoding
+- `mbstring` - For multi-byte string support
+- `openssl` - For secure connections
+- `session` - For user session management
+
+## Installation Steps
+
+<Steps>
+  <Step title="Clone the Repository">
+    Clone the Grupo Mecsa CMS repository to your web server directory:
+    
+    ```bash
+    cd C:/xampp/htdocs  # On Windows with XAMPP
+    # or
+    cd /var/www/html    # On Linux
+    
+    git clone <repo-url> GrupoMecsaCMS
+    cd GrupoMecsaCMS
+    ```
+    
+    The project structure should look like this:
+    
+    ```
+    GrupoMecsaCMS/
+    ├── assets/           # Static resources (images, logos)
+    ├── components/       # Reusable PHP components
+    ├── config/           # Configuration files
+    ├── docs/             # Documentation and SQL files
+    ├── pages/            # Main CMS pages
+    ├── scripts/          # JavaScript files
+    ├── styles/           # CSS and SCSS files
+    ├── vendor/           # Composer dependencies
+    ├── composer.json     # Composer configuration
+    ├── index.php         # Main entry point
+    ├── login.php         # Login page
+    └── supabase.php      # Supabase initialization
+    ```
+  </Step>
+
+  <Step title="Install PHP Dependencies">
+    Use Composer to install the required dependencies:
+    
+    ```bash
+    composer install
+    ```
+    
+    This installs:
+    - **guzzlehttp/guzzle** (^7.10) - HTTP client for API requests
+    
+    <Warning>
+      If you don't have Composer installed, download it from [getcomposer.org](https://getcomposer.org/download/)
+    </Warning>
+    
+    Verify the installation:
+    
+    ```bash
+    ls -la vendor/guzzlehttp
+    ```
+  </Step>
+
+  <Step title="Configure Supabase Connection">
+    Set up your Supabase credentials in `config/supabase.php`:
+    
+    ```php
+    <?php
+    global $supabase_url, $supabase_key, $supabase_service_role, $supabase_schema;
+    
+    $supabase_url = 'https://your-project-id.supabase.co';
+    $supabase_key = 'your-anon-public-key';
+    $supabase_service_role = 'your-service-role-key';
+    $supabase_schema = 'cms';
+    ?>
+    ```
+    
+    <Note>
+      **Finding Your Credentials:**
+      
+      1. Go to your [Supabase Dashboard](https://app.supabase.com)
+      2. Select your project
+      3. Navigate to Settings > API
+      4. Copy the Project URL and API keys
+    </Note>
+    
+    ### Environment-Specific Configuration
+    
+    For local development, create `local.supabase.php` (gitignored):
+    
+    ```php
+    <?php
+    // This file is loaded only in development and overrides config/supabase.php
+    $supabase_url = 'https://dev-project.supabase.co';
+    $supabase_key = 'dev-anon-key';
+    $supabase_service_role = 'dev-service-role-key';
+    ?>
+    ```
+    
+    The system automatically detects production by checking for `grupomecsa.net` in the hostname.
+  </Step>
+
+  <Step title="Setup Database Schema">
+    Import the database schema into your Supabase project:
+    
+    ### Create the CMS Schema
+    
+    First, create the `cms` schema in Supabase SQL Editor:
+    
+    ```sql
+    CREATE SCHEMA IF NOT EXISTS cms;
+    ```
+    
+    ### Import Core Tables
+    
+    Execute each SQL file from the `docs/` directory in this order:
+    
+    1. **Templates** - `sql_cms_templates.sql`
+    2. **Pages** - `sql_cms_pages.sql`
+    3. **Menus** - `sql_cms_menus.sql`
+    4. **Media Library** - `sql_cms_media_library.sql`
+    5. **Widgets** - `sql_cms_widgets.sql`
+    6. **Content Versions** - `sql_content_versions.sql`
+    7. **SEO Settings** - `sql_seo_settings.sql` and `sql_seo_meta.sql`
+    
+    ```sql
+    -- Example: Pages table structure
+    CREATE TABLE IF NOT EXISTS cms.cms_pages (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        title TEXT NOT NULL,
+        slug TEXT UNIQUE NOT NULL,
+        template_id UUID REFERENCES cms.cms_templates(id),
+        content JSONB DEFAULT '{}'::jsonb,
+        meta_title TEXT,
+        meta_description TEXT,
+        is_published BOOLEAN DEFAULT false,
+        published_at TIMESTAMP WITH TIME ZONE,
+        author_id UUID,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+    ```
+    
+    <Warning>
+      Make sure to execute the SQL files in the correct order to avoid foreign key constraint errors.
+    </Warning>
+  </Step>
+
+  <Step title="Configure Employee Access">
+    Create the `Empleados` table in the `public` schema for user management:
+    
+    ```sql
+    CREATE TABLE IF NOT EXISTS public.Empleados (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        id_user UUID REFERENCES auth.users(id),
+        nombre TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        rol TEXT, -- 'Administrador', 'Comercial', 'Proyecto'
+        chat_role TEXT,
+        sistemas_acceso TEXT[], -- Array: ['CMS', 'CRM', etc.]
+        activo BOOLEAN DEFAULT true,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+    ```
+    
+    ### Add Your First Admin User
+    
+    1. Create a user in Supabase Auth (Authentication > Users)
+    2. Insert a record in the `Empleados` table:
+    
+    ```sql
+    INSERT INTO public.Empleados (id_user, nombre, email, rol, sistemas_acceso, activo)
+    VALUES (
+        'user-uuid-from-auth',
+        'Your Name',
+        'your.email@grupomecsa.net',
+        'Administrador',
+        ARRAY['CMS'],
+        true
+    );
+    ```
+    
+    <Info>
+      The `sistemas_acceso` field must include 'CMS' for the user to access the system. Users without this permission will be denied access even with valid Supabase credentials.
+    </Info>
+  </Step>
+
+  <Step title="Configure Apache">
+    ### XAMPP Configuration (Windows)
+    
+    1. Start Apache from the XAMPP Control Panel
+    2. Ensure the `htdocs` directory is accessible
+    3. No additional configuration needed for default setup
+    
+    ### Virtual Host (Optional)
+    
+    For a custom domain, edit `httpd-vhosts.conf`:
+    
+    ```apache
+    <VirtualHost *:80>
+        ServerName cms.grupomecsa.local
+        DocumentRoot "C:/xampp/htdocs/GrupoMecsaCMS"
+        <Directory "C:/xampp/htdocs/GrupoMecsaCMS">
+            AllowOverride All
+            Require all granted
+        </Directory>
+    </VirtualHost>
+    ```
+    
+    Add to your hosts file (`C:\Windows\System32\drivers\etc\hosts`):
+    
+    ```
+    127.0.0.1 cms.grupomecsa.local
+    ```
+  </Step>
+
+  <Step title="Verify Installation">
+    Access your CMS installation:
+    
+    ```
+    http://localhost/GrupoMecsaCMS
+    ```
+    
+    You should see the login page with:
+    - Grupo Mecsa branding on the left sidebar
+    - Login form with email and password fields
+    - "Forgot password" option
+    
+    ### Test Login
+    
+    1. Enter your Supabase user credentials
+    2. Click "Entrar al Sistema"
+    3. If successful, you'll be redirected to the dashboard
+    
+    ```php
+    // The login process validates:
+    // 1. Supabase authentication
+    // 2. Email confirmation status
+    // 3. Employee record existence
+    // 4. CMS access permission
+    // 5. Active status
+    ```
+  </Step>
+</Steps>
+
+## Post-Installation Configuration
+
+### Session Management
+
+The CMS uses PHP sessions to maintain user state. Sessions store:
+
+- `token` - Supabase access token
+- `refresh_token` - For token renewal
+- `email` - User email
+- `uid` - User ID from Supabase Auth
+- `rol` - User role (Administrador, Comercial, Proyecto)
+- `nombre` - User display name
+- `chat_role` - Chat system role (if applicable)
+
+### Security Considerations
+
+<Warning>
+  **Never commit sensitive files:**
+  
+  - `config/supabase.php` with real credentials
+  - `local.supabase.php`
+  - Any files containing API keys or passwords
+  
+  These should be in your `.gitignore` file.
+</Warning>
+
+### File Permissions
+
+Ensure these directories are writable:
+
+```bash
+chmod 755 assets/
+chmod 755 vendor/
+```
+
+## Troubleshooting
+
+### Common Issues
+
+#### Issue: "Access Denied" after successful login
+
+**Cause:** User doesn't have CMS access in the `Empleados` table.
+
+**Solution:**
+```sql
+UPDATE public.Empleados 
+SET sistemas_acceso = ARRAY['CMS']
+WHERE email = 'your.email@grupomecsa.net';
+```
+
+---
+
+#### Issue: "Email not confirmed" error
+
+**Cause:** The user's email hasn't been verified in Supabase Auth.
+
+**Solution:**
+1. Check email for confirmation link
+2. Or manually confirm in Supabase Dashboard > Authentication > Users
+3. Or use the "Reenviar Verificación" button on the login page
+
+---
+
+#### Issue: Blank page or errors on login
+
+**Cause:** PHP errors or missing dependencies.
+
+**Solution:**
+1. Check Apache error logs:
+   ```bash
+   # XAMPP on Windows
+   C:\xampp\apache\logs\error.log
+   ```
+2. Enable error display in `php.ini`:
+   ```ini
+   display_errors = On
+   error_reporting = E_ALL
+   ```
+3. Verify Composer dependencies:
+   ```bash
+   composer install --no-dev
+   ```
+
+---
+
+#### Issue: Cannot connect to Supabase
+
+**Cause:** Incorrect credentials or network issues.
+
+**Solution:**
+1. Verify credentials in `config/supabase.php`
+2. Test connection manually:
+   ```php
+   <?php
+   require 'config/supabase.php';
+   $test = supabase_get('Empleados?limit=1');
+   var_dump($test);
+   ?>
+   ```
+3. Check firewall/network settings
+4. Ensure SSL certificates are valid
+
+---
+
+#### Issue: Windows SSL certificate errors
+
+**Cause:** XAMPP on Windows may have SSL verification issues.
+
+**Solution:** The system uses `--ssl-no-revoke` flag for Windows environments automatically. If issues persist:
+
+1. Download latest `cacert.pem` from curl.se
+2. Update `php.ini`:
+   ```ini
+   curl.cainfo = "C:\xampp\php\extras\ssl\cacert.pem"
+   ```
+
+---
+
+#### Issue: 403 Forbidden errors on API requests
+
+**Cause:** Row Level Security (RLS) policies blocking access.
+
+**Solution:**
+1. Use service role key for admin operations
+2. Review RLS policies in Supabase
+3. Ensure user has proper role assignments
+
+---
+
+### Debug Mode
+
+Enable debug output by adding to `config/supabase.php`:
+
+```php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+```
+
+### Performance Tips
+
+1. **Enable OPcache** in production:
+   ```ini
+   opcache.enable=1
+   opcache.memory_consumption=128
+   ```
+
+2. **Use cURL** instead of shell_exec on Linux (automatic)
+
+3. **Configure session storage** for better performance:
+   ```ini
+   session.save_handler = files
+   session.gc_maxlifetime = 1440
+   ```
+
+## Next Steps
+
+Once installation is complete:
+
+1. [Configure user roles and permissions](/users/roles)
+2. [Set up email templates](/email/overview)
+3. [Create your first content](/modules/content)
+4. [Manage your dashboard](/modules/dashboard)
+
+<Note>
+  Keep your system updated by regularly running `composer update` and pulling the latest changes from the repository.
+</Note>
+
+## Support
+
+For additional help:
+
+- Review the [Quickstart Guide](/quickstart) for basic setup
+- Check module-specific documentation
+- Contact the development team for internal support
+
+<Info>
+  This is an internal system for Grupo Mecsa authorized personnel only. Keep all credentials secure and follow company security policies.
+</Info>

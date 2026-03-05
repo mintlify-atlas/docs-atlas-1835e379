@@ -1,0 +1,231 @@
+---
+title: Employee Management
+description: Manage your organization's employee directory with photos, contact information, and departmental assignments.
+---
+
+## Overview
+
+The Employee Management module allows you to maintain a comprehensive directory of all employees in your organization. Each employee profile includes personal information, professional details, contact data, and a photo.
+
+<Note>
+Employee photos are stored in Supabase Storage and must be in image format (JPG, PNG, etc.).
+</Note>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Employee Directory" icon="users">
+    View and search all employees with their photos, names, positions, and departments.
+  </Card>
+  <Card title="Contact Information" icon="address-book">
+    Store phone numbers and email addresses for easy communication.
+  </Card>
+  <Card title="Department Assignment" icon="building">
+    Link employees to specific departments for organizational structure.
+  </Card>
+  <Card title="Photo Management" icon="camera">
+    Upload and display employee photos in the directory.
+  </Card>
+</CardGroup>
+
+## CRUD Operations
+
+### Create New Employee
+
+<Steps>
+  <Step title="Open the New Employee Modal">
+    Click the **"Añadir nuevo"** button in the top-right corner of the employee directory.
+  </Step>
+  
+  <Step title="Fill in Employee Details">
+    Complete the following required and optional fields:
+    
+    **Required Fields:**
+    - **Nombre completo** - Full name of the employee
+    - **Fotografía** - Employee photo (image file)
+    - **Departamento** - Select from existing departments
+    
+    **Optional Fields:**
+    - **Puesto / Descripción** - Job title or role description
+    - **Celular** - Mobile phone number
+    - **Correo electrónico** - Email address
+  </Step>
+  
+  <Step title="Submit the Form">
+    Click **"Añadir Empleado"** to create the employee record. The photo will be uploaded to Supabase Storage and the employee data will be saved to the database.
+  </Step>
+</Steps>
+
+<Info>
+The system automatically generates a unique ID for each new employee and stores the creation timestamp.
+</Info>
+
+### Read/View Employees
+
+The employee directory displays:
+- **ID** - Unique employee identifier
+- **Foto** - Employee photo thumbnail (120px)
+- **Nombre** - Full name
+- **Descripción** - Job title or position
+- **Departamento** - Department badge
+- **Acciones** - Edit and delete buttons
+
+<Accordion title="Pagination">
+  The employee list supports pagination with configurable rows per page (default: 10 employees per page). Use the pagination controls at the bottom of the table to navigate through pages.
+</Accordion>
+
+### Update Employee Information
+
+<Steps>
+  <Step title="Click the Edit Button">
+    In the employee table, click the edit icon (pen) in the Actions column for the employee you want to modify.
+  </Step>
+  
+  <Step title="Modify the Information">
+    Update any of the following fields:
+    - Full name
+    - Photo (optional - only if you want to change the current photo)
+    - Job description
+    - Department assignment
+    - Mobile phone number
+    - Email address
+  </Step>
+  
+  <Step title="Save Changes">
+    Click **"Guardar Cambios"** to update the employee record. The form processes at `functions/editarEmpleado.php`.
+  </Step>
+</Steps>
+
+<Note>
+When editing, the current photo is displayed as a preview. You only need to upload a new file if you want to replace it.
+</Note>
+
+### Delete Employee
+
+Click the delete icon (trash) in the Actions column for any employee. A confirmation prompt will appear before permanently removing the employee from the system.
+
+<Warning>
+Deleting an employee is permanent and cannot be undone. Ensure you have the correct employee selected before confirming deletion.
+</Warning>
+
+## Form Fields and Validation
+
+| Field Name | Type | Required | Validation | Storage |
+|------------|------|----------|------------|----------|
+| `nombre` | Text | Yes | Non-empty string | Database |
+| `foto` | File | Yes (create) | Image format | Supabase Storage (`empleados` bucket) |
+| `descripcion` | Textarea | No | None | Database |
+| `departamento` | Select | Yes | Must match existing department | Database |
+| `celular` | Text | No | None | Database |
+| `correo` | Email | No | Valid email format | Database |
+
+## Data Structure
+
+### Database Table: `empleados`
+
+```json
+{
+  "id": "auto-incremented integer",
+  "nombre": "string",
+  "foto": "string (file path in storage)",
+  "descripcion": "string",
+  "departamento": "string",
+  "celular": "string",
+  "correo": "string",
+  "created_at": "timestamp (Y-m-d H:i:s)"
+}
+```
+
+### Photo Storage
+
+Employee photos are stored in the Supabase Storage bucket `empleados` with the path pattern:
+```
+fotos/{sanitized_filename}
+```
+
+The public URL format is:
+```
+https://awhuzekjpoapamijlvua.supabase.co/storage/v1/object/public/empleados/{foto_path}
+```
+
+## Role-Based Access
+
+<Info>
+Access to the Employee Management module requires an active session with a valid authentication token. Users without a valid `$_SESSION['token']` will be redirected to the login page.
+</Info>
+
+### Required Permissions
+- **View Employees** - Authenticated users with valid session
+- **Create Employee** - Users with write permissions
+- **Edit Employee** - Users with write permissions
+- **Delete Employee** - Users with delete permissions
+
+## Integration with Other Modules
+
+The Employee Management module integrates with:
+
+<CardGroup cols={2}>
+  <Card title="Departments" icon="sitemap">
+    Employee records pull department names from the `departamento` table for the dropdown selector.
+  </Card>
+  <Card title="Supabase Storage" icon="database">
+    Photos are stored and retrieved from the Supabase Storage `empleados` bucket.
+  </Card>
+</CardGroup>
+
+## Technical Details
+
+### API Endpoints
+
+- **GET** `/empleados?select=*&order=id.desc&limit={perPage}&offset={offset}` - Fetch paginated employees
+- **GET** `/empleados?select=id` - Get total count for pagination
+- **POST** `/empleados` - Create new employee
+- **POST** `/functions/editarEmpleado.php` - Update employee
+- **Storage PUT** `/storage/v1/object/empleados/{path}` - Upload photo
+
+### JavaScript Files
+
+- `main.js` - Core CMS functionality
+- `mainempleados.js` - Employee-specific interactions (edit modal population, delete confirmation)
+
+## User Workflows
+
+### Adding a New Team Member
+
+<Steps>
+  <Step title="Ensure Department Exists">
+    Before adding an employee, make sure their department is already created in the Departments module.
+  </Step>
+  
+  <Step title="Prepare Employee Photo">
+    Have a professional photo ready in JPG or PNG format.
+  </Step>
+  
+  <Step title="Create Employee Record">
+    Click "Añadir nuevo" and fill in all relevant information including name, photo, department, description, phone, and email.
+  </Step>
+  
+  <Step title="Verify the Entry">
+    After creation, the employee will appear in the directory table with their photo and information visible.
+  </Step>
+</Steps>
+
+### Updating Contact Information
+
+<Steps>
+  <Step title="Locate the Employee">
+    Use pagination or scroll through the employee directory to find the person whose information needs updating.
+  </Step>
+  
+  <Step title="Open Edit Modal">
+    Click the edit icon (pen) in the Actions column.
+  </Step>
+  
+  <Step title="Update Fields">
+    Modify the phone number, email, or any other field that needs to be updated.
+  </Step>
+  
+  <Step title="Save">
+    Click "Guardar Cambios" to commit the updates.
+  </Step>
+</Steps>

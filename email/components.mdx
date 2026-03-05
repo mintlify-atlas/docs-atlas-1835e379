@@ -1,0 +1,459 @@
+---
+title: 'Email Components'
+description: 'Available components and how to use them in your email templates'
+---
+
+## Component Types
+
+The Email Builder provides two categories of components: built-in blocks and custom library components.
+
+## Structure Components
+
+Structure components define the layout of your email:
+
+### 1 Column Row
+
+**Description:** Full-width single column layout
+
+**Use case:** 
+- Hero images
+- Large headlines
+- Full-width content sections
+
+**Properties:**
+- Width: 100% of email container (600px)
+- Automatically stacks on mobile
+
+---
+
+### 2 Column Row
+
+**Description:** Split layout with two equal columns
+
+**Use case:**
+- Image + text combinations
+- Side-by-side product features
+- Comparison layouts
+
+**Properties:**
+- Desktop: Each column is 50% width (300px)
+- Mobile: Stacks vertically
+
+---
+
+### 3 Column Row
+
+**Description:** Three equal columns for grid layouts
+
+**Use case:**
+- Product showcases
+- Feature grids
+- Icon + text cards
+
+**Properties:**
+- Desktop: Each column is 33.33% width (200px)
+- Mobile: Stacks vertically
+
+<Warning>
+3-column layouts may be difficult to read on small screens. Use sparingly and test on mobile devices.
+</Warning>
+
+## Content Components
+
+### Title
+
+**Description:** Large heading text for section headers
+
+**Properties:**
+- **Content** - Rich text editable inline
+- **Alignment** - Left, Center, Right, Justify
+- **Font Size** - 16px to 32px (default: 24px)
+- **Color** - Inherits from theme Primary color
+
+**HTML Output:**
+```html
+<div style="text-align:center;color:#1a237e;font-size:24px;line-height:1.5;">
+  Your Title Here
+</div>
+```
+
+**Customization:**
+- Click into the title to edit text
+- Use alignment buttons below the block
+- Select font size from dropdown
+- Insert FontAwesome icons using icon picker
+
+---
+
+### Text
+
+**Description:** Paragraph content with rich text editing
+
+**Properties:**
+- **Content** - Rich text editable inline
+- **Alignment** - Left, Center, Right, Justify
+- **Font Size** - 16px to 32px (default: 18px)
+- **Color** - Inherits from theme Text color
+
+**HTML Output:**
+```html
+<div style="text-align:left;color:#222222;font-size:18px;line-height:1.5;">
+  <p>Your paragraph text here.</p>
+</div>
+```
+
+**Customization:**
+- Supports basic HTML formatting (bold, italic, links)
+- Can include inline FontAwesome icons
+- Maintains formatting in exported HTML
+
+---
+
+### List
+
+**Description:** Bulleted or numbered list items
+
+**Properties:**
+- **Items** - One item per line in textarea
+- **Alignment** - Left, Center, Right
+- **Color** - Inherits from theme Text color
+
+**Usage:**
+```plaintext
+Enter each list item on a new line:
+
+Feature one
+Feature two  
+Feature three
+```
+
+**HTML Output:**
+```html
+<ul style="color:#222222;text-align:left;">
+  <li>Feature one</li>
+  <li>Feature two</li>
+  <li>Feature three</li>
+</ul>
+```
+
+---
+
+### Image
+
+**Description:** Upload and display images from Supabase storage
+
+**Properties:**
+- **URL** - Image URL (from Supabase or external)
+- **Alt Text** - Accessibility description (set in component)
+- **Width** - Auto-sized to fit column
+
+**Upload Process:**
+<Steps>
+  <Step title="Click Image Button">
+    Click the large "Seleccionar o subir imagen" button
+  </Step>
+  
+  <Step title="Upload or Select">
+    - Upload new image from your computer
+    - Or select existing image from Supabase storage
+  </Step>
+  
+  <Step title="Image Displays">
+    Selected image appears as preview in the block
+  </Step>
+</Steps>
+
+**HTML Output:**
+```html
+<img src="https://[supabase-url]/storage/v1/object/public/email/image.jpg" 
+     alt="Description" 
+     style="display:block;width:100%;max-width:600px;" />
+```
+
+<Note>
+Images are stored in the `email` bucket in Supabase Storage. Ensure images are publicly accessible.
+</Note>
+
+---
+
+### Button
+
+**Description:** Call-to-action button with link
+
+**Properties:**
+- **Text** - Button label
+- **URL** - Link destination
+- **Color** - Background color (defaults to Primary theme)
+- **Border Radius** - Rounded corners (24px)
+- **Padding** - Internal spacing (12px 32px)
+
+**Configuration:**
+1. Enter button text in first input field
+2. Enter full URL (including https://) in second field
+3. Button automatically uses theme primary color
+
+**HTML Output:**
+```html
+<a href="https://example.com" 
+   style="background:#1a237e;color:#fff;text-decoration:none;
+          display:inline-block;padding:12px 32px;border-radius:24px;
+          font-weight:bold;">
+  Click Here
+</a>
+```
+
+**Best Practices:**
+- Use clear, action-oriented text ("Shop Now", "Learn More")
+- Always include https:// in URLs
+- Test links before sending
+- Keep button text short (2-4 words)
+
+---
+
+### Separator
+
+**Description:** Horizontal line divider
+
+**Properties:**
+- **Color** - Line color (defaults to Secondary theme)
+- **Height** - Line thickness (2px)
+- **Margin** - Vertical spacing (18px)
+
+**HTML Output:**
+```html
+<div style="width:100%;height:2px;background:#e53935;margin:18px 0;border-radius:3px;opacity:0.7;"></div>
+```
+
+**Use Cases:**
+- Separate content sections
+- Add visual breaks in long emails
+- Divide header from body content
+
+---
+
+### Social Media
+
+**Description:** Social media icons with links
+
+**Properties:**
+- **Icons** - Multiple icon types (Facebook, Instagram, LinkedIn, Twitter, YouTube)
+- **URLs** - Link for each social platform
+- **Alignment** - Left, Center, Right
+
+**Configuration:**
+<Steps>
+  <Step title="Choose Platform">
+    Select social media platform from dropdown
+  </Step>
+  
+  <Step title="Enter URL">
+    Paste your social media profile URL
+  </Step>
+  
+  <Step title="Add More Icons">
+    Click "+ Icono" to add additional platforms
+  </Step>
+</Steps>
+
+**HTML Output:**
+```html
+<div style="text-align:center;">
+  <a href="https://facebook.com/yourpage" style="text-decoration:none;color:#0d6efd;margin:0 8px;">Facebook</a>
+  <a href="https://twitter.com/yourhandle" style="text-decoration:none;color:#0d6efd;margin:0 8px;">Twitter</a>
+</div>
+```
+
+<Note>
+Icons are rendered as text labels in the generated HTML. For actual icon images, create a custom component with hosted icon URLs.
+</Note>
+
+---
+
+### Link
+
+**Description:** Simple text hyperlink
+
+**Properties:**
+- **Text** - Link label
+- **URL** - Link destination
+
+**HTML Output:**
+```html
+<a href="https://example.com" class="btn btn-link">Link Text</a>
+```
+
+---
+
+## Custom Components
+
+### What are Custom Components?
+
+Custom components are reusable blocks you create in the **Component Library** (`emailcomponents.php`). They support variables that can be configured per use.
+
+### Using Custom Components
+
+<Steps>
+  <Step title="Add Custom Block">
+    Click the **Custom** (cube icon) in the content toolbar
+  </Step>
+  
+  <Step title="Select Component">
+    Choose a component from your library in the dropdown
+  </Step>
+  
+  <Step title="Configure Variables">
+    Click the **gear icon** to open configuration modal
+  </Step>
+  
+  <Step title="Edit Values">
+    - Text fields: Enter custom text
+    - Color fields: Use color picker
+    - Image fields: Upload or select images
+  </Step>
+  
+  <Step title="Preview Changes">
+    View live preview in the modal as you edit
+  </Step>
+</Steps>
+
+### Component Variables
+
+Custom components use double-brace syntax for variables:
+
+```html
+<div style="background:{{primary}};color:{{textColor}};padding:20px;">
+  <h2>{{title}}</h2>
+  <p>{{description}}</p>
+  <img src="{{logoUrl}}" width="{{logoWidth}}" />
+</div>
+```
+
+**Built-in Variables:**
+- `{{primary}}` - Primary theme color
+- `{{secondary}}` - Secondary theme color
+- `{{title}}` - Title text
+- `{{description}}` - Description text
+- `{{buttonText}}` - Button label
+- `{{buttonUrl}}` - Button link
+- `{{logoUrl}}` - Logo image URL
+- `{{logoWidth}}` - Logo width in pixels
+
+### Creating Custom Components
+
+See the [Component Library](/email/components#component-library) section for details on creating reusable components.
+
+## Component Library Management
+
+Access the component library at **Emails** > **Componentes**.
+
+### Creating a New Component
+
+<Steps>
+  <Step title="Open Library">
+    Navigate to **Componentes de Email** page
+  </Step>
+  
+  <Step title="Click New Component">
+    Click "+ Nuevo componente" button
+  </Step>
+  
+  <Step title="Fill Details">
+    - **Name** - Display name for component
+    - **Key** - Unique identifier (auto-generated from name)
+    - **Description** - Short description of purpose
+    - **Thumbnail URL** - Preview image (optional)
+  </Step>
+  
+  <Step title="Add HTML Snippet">
+    Write or paste your HTML with `{{variable}}` placeholders
+  </Step>
+  
+  <Step title="Define Config (JSON)">
+    Specify default values for variables:
+    ```json
+    {
+      "title": "Default Title",
+      "logoUrl": "https://example.com/logo.png",
+      "colorbutton": "#e83e8c"
+    }
+    ```
+  </Step>
+  
+  <Step title="Save Component">
+    Click "Añadir Componente" to save to library
+  </Step>
+</Steps>
+
+### Editing Components
+
+1. Click the **edit icon** (pen) next to a component
+2. Modify fields in the modal
+3. Click "Guardar Cambios" to update
+
+<Warning>
+Changing the **Key** of an existing component may break templates that use it. Keys are read-only when editing.
+</Warning>
+
+### Deleting Components
+
+1. Click the **delete icon** (trash) next to a component
+2. Confirm deletion
+3. Component is removed from library
+
+<Note>
+Deleting a component does not remove it from existing templates. Templates store the component HTML, not a reference to the library.
+</Note>
+
+## Component Best Practices
+
+1. **Test in email clients** - Always preview components in Gmail, Outlook, and Apple Mail
+2. **Use table layouts** - Email clients require table-based layouts for reliability
+3. **Inline all styles** - CSS must be inline; no external stylesheets or `<style>` tags
+4. **Limit width** - Keep content within 600px width
+5. **Provide fallbacks** - Use alt text for images and fallback colors
+6. **Avoid JavaScript** - Email clients strip JavaScript for security
+7. **Web-safe fonts only** - Stick to Arial, Helvetica, Georgia, Times New Roman
+8. **Small file sizes** - Optimize images to load quickly on mobile
+
+## Component HTML Reference
+
+### Table-Based Layout
+
+All email components should use table structures:
+
+```html
+<table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+  <tr>
+    <td style="padding:20px;">
+      <!-- Content here -->
+    </td>
+  </tr>
+</table>
+```
+
+### Inline Styles
+
+Always use inline styles, never external CSS:
+
+```html
+<!-- Good -->
+<div style="color:#222;font-size:16px;line-height:1.5;">
+  Content
+</div>
+
+<!-- Bad -->
+<div class="text-block">
+  Content
+</div>
+```
+
+### Color Variables
+
+Use template variables for theme colors:
+
+```html
+<a href="{{buttonUrl}}" 
+   style="background:{{primary}};color:#fff;padding:12px 24px;">
+  {{buttonText}}
+</a>
+```

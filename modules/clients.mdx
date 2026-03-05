@@ -1,0 +1,256 @@
+---
+title: Client Management
+description: Manage your client directory with logos, categories, and metadata
+icon: users
+---
+
+## Overview
+
+The Clients module allows you to maintain a comprehensive directory of your business clients. Each client record includes a logo, category assignment, and metadata for organization and display purposes.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Logo Management" icon="image">
+    Upload and store client logos in Supabase Storage
+  </Card>
+  <Card title="Category Organization" icon="folder-tree">
+    Organize clients by business categories
+  </Card>
+  <Card title="Pagination" icon="list">
+    Browse large client lists with configurable page sizes
+  </Card>
+  <Card title="CRUD Operations" icon="pencil">
+    Create, view, update, and delete client records
+  </Card>
+</CardGroup>
+
+## Adding a New Client
+
+<Steps>
+  <Step title="Navigate to Clients">
+    Access the Clients module from the sidebar menu.
+  </Step>
+  
+  <Step title="Click 'New Client'">
+    Click the "Agregar Cliente" button to open the creation form.
+  </Step>
+  
+  <Step title="Fill in Client Details">
+    Required fields:
+    - **Name** (`nombre`): Client company name
+    - **Category** (`categoria`): Select from existing categories
+    - **Logo**: Upload an image file (PNG, JPG, SVG)
+  </Step>
+  
+  <Step title="Submit the Form">
+    The system will:
+    - Validate the input
+    - Upload the logo to Supabase Storage
+    - Generate the next client ID
+    - Insert the record into the database
+  </Step>
+</Steps>
+
+## Logo Upload Process
+
+Logos are stored in Supabase Storage with category-based paths:
+
+```php clientes.php
+$bucket = "clientes";
+$nombre_original = basename($_FILES['logo']['name']);
+$extension = pathinfo($nombre_original, PATHINFO_EXTENSION);
+
+// Sanitize filename
+$nombre_seguro = preg_replace('/[^A-Za-z0-9_-]/', '_', pathinfo($nombre_original, PATHINFO_FILENAME));
+$nombre_final = $nombre_seguro . '.' . strtolower($extension);
+
+// Category-based path
+$ruta_supabase = "$categoria/logos/$nombre_final";
+
+$contenido = file_get_contents($_FILES['logo']['tmp_name']);
+
+$ch = curl_init();
+curl_setopt_array($ch, [
+    CURLOPT_URL => "$supabase_url/storage/v1/object/$bucket/$ruta_supabase",
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_CUSTOMREQUEST => "PUT",
+    CURLOPT_POSTFIELDS => $contenido,
+    CURLOPT_HTTPHEADER => array_merge(get_supabase_headers(), [
+        "Content-Type: application/octet-stream"
+    ])
+]);
+$upload_resp = curl_exec($ch);
+$upload_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+```
+
+### Storage Path Structure
+
+```
+clientes/
+  ├── categoria1/
+  │   └── logos/
+  │       ├── client1.png
+  │       └── client2.jpg
+  └── categoria2/
+      └── logos/
+          └── client3.svg
+```
+
+## Client Record Structure
+
+```json
+{
+  "id": 1,
+  "nombre": "Company Name",
+  "categoria": 5,
+  "logo_url": "categoria1/logos/company.png",
+  "created_at": "2024-01-15T10:30:00Z"
+}
+```
+
+## Pagination
+
+The client list supports pagination for better performance:
+
+```php clientes.php
+$page = intval($_GET['page'] ?? 1);
+$perPage = intval($_GET['rowsPerPage'] ?? 10);
+$offset = ($page - 1) * $perPage;
+```
+
+**Default Settings:**
+- **Rows per page**: 10
+- **Configurable**: Users can change the page size
+- **URL parameters**: `?page=2&rowsPerPage=20`
+
+## Category Integration
+
+Clients are organized by categories defined in the `categorias` table. Each client must be assigned to a valid category.
+
+<Info>
+  Categories help organize clients by industry, service type, or any custom classification system.
+</Info>
+
+### Category Selection
+
+When creating or editing a client:
+
+```php
+$selected_cat_id = isset($_POST['categoria']) ? intval($_POST['categoria']) : 0;
+
+if (empty($nombre) || $selected_cat_id <= 0) {
+    die("<script>alert('❌ Faltan datos requeridos o categoría inválida'); window.history.back();</script>");
+}
+```
+
+## Editing Clients
+
+To update an existing client:
+
+<Steps>
+  <Step title="Select Client">
+    Click the edit button next to the client you want to modify.
+  </Step>
+  
+  <Step title="Modify Fields">
+    Update any of the following:
+    - Client name
+    - Category assignment
+    - Logo (optional - upload a new one to replace)
+  </Step>
+  
+  <Step title="Save Changes">
+    Submit the form to update the record in the database.
+  </Step>
+</Steps>
+
+<Note>
+  When uploading a new logo, the old logo file remains in storage. Consider implementing cleanup routines for unused files.
+</Note>
+
+## Deleting Clients
+
+Deleting a client:
+
+<Warning>
+  Deleting a client does not automatically remove their logo from Supabase Storage. The file will remain unless manually deleted.
+</Warning>
+
+<Steps>
+  <Step title="Select Client">
+    Click the delete button for the client you want to remove.
+  </Step>
+  
+  <Step title="Confirm Deletion">
+    Confirm the action in the dialog prompt.
+  </Step>
+  
+  <Step title="Record Removed">
+    The client record is permanently deleted from the database.
+  </Step>
+</Steps>
+
+## Viewing Client Projects
+
+Clients are linked to projects in the [Projects module](/modules/projects). When viewing a client, you can see all associated projects.
+
+## Database Table
+
+**Table Name**: `clientes`
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | integer | Auto-incrementing primary key |
+| `nombre` | text | Client company name |
+| `categoria` | integer | Foreign key to `categorias.id` |
+| `logo_url` | text | Storage path to logo file |
+| `created_at` | timestamptz | Record creation timestamp |
+
+## API Endpoints
+
+The Clients module uses Supabase REST API:
+
+- **GET** `/rest/v1/clientes` - List all clients
+- **POST** `/rest/v1/clientes` - Create new client
+- **PATCH** `/rest/v1/clientes?id=eq.{id}` - Update client
+- **DELETE** `/rest/v1/clientes?id=eq.{id}` - Delete client
+
+## Best Practices
+
+<Tip>
+  Use consistent logo file formats (PNG or SVG) for better display quality across devices.
+</Tip>
+
+<Tip>
+  Organize categories thoughtfully before adding many clients - restructuring later can be time-consuming.
+</Tip>
+
+## Troubleshooting
+
+### Logo Upload Fails
+
+**Possible causes:**
+- File size exceeds server limits
+- Invalid file format
+- Insufficient storage permissions
+
+**Solution**: Check PHP `upload_max_filesize` and Supabase Storage bucket policies.
+
+### Category Not Found
+
+**Problem**: "Categoría inválida" error
+
+**Solution**: Ensure you've selected a valid category from the dropdown. If no categories exist, create one in the [Categories module](/modules/content) first.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Projects" icon="diagram-project" href="/modules/projects">
+    Link clients to projects
+  </Card>
+  <Card title="Dashboard" icon="gauge" href="/modules/dashboard">
+    View client statistics
+  </Card>
+</CardGroup>

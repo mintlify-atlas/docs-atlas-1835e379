@@ -1,0 +1,438 @@
+---
+title: 'Admin Roles API'
+description: 'Manage user roles and permissions in the CMS'
+---
+
+## Overview
+
+The Admin Roles API allows administrators to manage user roles, view role assignments, and configure permissions for different CMS views. This endpoint requires admin authentication.
+
+**Endpoint:** `/api/admin_roles_api.php`
+
+## Authentication
+
+<Warning>
+  This endpoint requires **admin privileges**. Users must have:
+  - Role: `administrador` or `admin`, OR
+  - Email: `emmanuel.jarquin@grupomecsa.net`, OR
+  - User metadata: `admin: true`
+</Warning>
+
+### Session Requirements
+
+```php
+session_start();
+if (!isset($_SESSION['token'])) {
+    // Returns 401 Unauthorized
+}
+```
+
+## GET Requests
+
+### Get Roles
+
+Retrieve all roles with user counts.
+
+**Request:**
+
+```bash
+GET /api/admin_roles_api.php?action=get_roles
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "roles": [
+    {
+      "nombre": "ventas",
+      "total": 12,
+      "is_standard": true
+    },
+    {
+      "nombre": "proyectos",
+      "total": 8,
+      "is_standard": true
+    },
+    {
+      "nombre": "administrador",
+      "total": 3,
+      "is_standard": true
+    },
+    {
+      "nombre": "recepcion",
+      "total": 2,
+      "is_standard": true
+    },
+    {
+      "nombre": "mercadeo",
+      "total": 5,
+      "is_standard": true
+    },
+    {
+      "nombre": "contabilidad",
+      "total": 4,
+      "is_standard": true
+    }
+  ]
+}
+```
+
+**Response Fields:**
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="roles" type="array" required>
+  Array of role objects
+  
+  <Expandable title="Role Object">
+    <ResponseField name="nombre" type="string" required>
+      Role name (lowercase)
+    </ResponseField>
+    
+    <ResponseField name="total" type="integer" required>
+      Number of active users assigned to this role
+    </ResponseField>
+    
+    <ResponseField name="is_standard" type="boolean" required>
+      Whether this is a standard system role
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Standard Roles:**
+
+- `ventas` - Sales team
+- `proyectos` - Projects team
+- `administrador` - System administrators
+- `recepcion` - Reception
+- `mercadeo` - Marketing team
+- `contabilidad` - Accounting team
+
+### Get Permissions
+
+Retrieve all role-view permission mappings.
+
+**Request:**
+
+```bash
+GET /api/admin_roles_api.php?action=get_permisos
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "permisos": [
+    {
+      "id": 1,
+      "rol_nombre": "ventas",
+      "vista_slug": "dashboard",
+      "puede_ver": true
+    },
+    {
+      "id": 2,
+      "rol_nombre": "ventas",
+      "vista_slug": "clientes",
+      "puede_ver": true
+    },
+    {
+      "id": 3,
+      "rol_nombre": "ventas",
+      "vista_slug": "proyectos",
+      "puede_ver": true
+    }
+  ]
+}
+```
+
+**Response Fields:**
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the request was successful
+</ResponseField>
+
+<ResponseField name="permisos" type="array" required>
+  Array of permission objects ordered by role name
+  
+  <Expandable title="Permission Object">
+    <ResponseField name="id" type="integer" required>
+      Unique permission ID
+    </ResponseField>
+    
+    <ResponseField name="rol_nombre" type="string" required>
+      Role name this permission applies to
+    </ResponseField>
+    
+    <ResponseField name="vista_slug" type="string" required>
+      CMS view/section identifier
+    </ResponseField>
+    
+    <ResponseField name="puede_ver" type="boolean" required>
+      Whether the role has access to this view
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Available Views:**
+
+- `dashboard` - Main dashboard
+- `usuarios` - User management
+- `categorias` - Category management
+- `clientes` - Client management
+- `proyectos` - Project management
+- `empleados` - Employee management
+- `departamentos` - Department management
+- `testimoniales` - Testimonials
+- `preguntas` - FAQ management
+- `contenido` - Content management
+- `templates` - Template editor
+- `menus` - Menu configuration
+- `pages` - Page management
+- `media` - Media library
+- `seo` - SEO settings
+- `blog` - Blog posts
+- `vacantes` - Job postings
+- `contactos` - Contact forms
+
+## POST Requests
+
+### Save Permissions
+
+Update permissions for a specific role.
+
+**Request:**
+
+```bash
+POST /api/admin_roles_api.php
+Content-Type: application/json
+
+{
+  "action": "save_permisos",
+  "rol_nombre": "ventas",
+  "permisos": [
+    {
+      "vista_slug": "dashboard",
+      "puede_ver": true
+    },
+    {
+      "vista_slug": "clientes",
+      "puede_ver": true
+    },
+    {
+      "vista_slug": "proyectos",
+      "puede_ver": true
+    },
+    {
+      "vista_slug": "usuarios",
+      "puede_ver": false
+    }
+  ]
+}
+```
+
+**Parameters:**
+
+<ParamField path="action" type="string" required>
+  Must be `save_permisos`
+</ParamField>
+
+<ParamField path="rol_nombre" type="string" required>
+  Role name to update permissions for
+</ParamField>
+
+<ParamField path="permisos" type="array" required>
+  Array of permission objects
+  
+  <Expandable title="Permission Object">
+    <ParamField path="vista_slug" type="string" required>
+      View identifier
+    </ParamField>
+    
+    <ParamField path="puede_ver" type="boolean" required>
+      Access permission for this view
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+**Response:**
+
+```json
+{
+  "success": true
+}
+```
+
+**Behavior:**
+
+1. Deletes all existing permissions for the role
+2. Inserts the new permission set
+3. Returns success status
+
+### Create Role
+
+Create a new role with default permissions.
+
+**Request:**
+
+```bash
+POST /api/admin_roles_api.php
+Content-Type: application/json
+
+{
+  "action": "create_rol",
+  "rol_nombre": "marketing"
+}
+```
+
+**Parameters:**
+
+<ParamField path="action" type="string" required>
+  Must be `create_rol`
+</ParamField>
+
+<ParamField path="rol_nombre" type="string" required>
+  Name of the new role (will be stored in lowercase)
+</ParamField>
+
+**Response:**
+
+```json
+{
+  "success": true
+}
+```
+
+**Behavior:**
+
+- Creates permission entries for all available views
+- All permissions are set to `false` by default
+- Admin must configure permissions after creation
+
+### Delete Role
+
+Delete a role if it has no assigned users.
+
+**Request:**
+
+```bash
+POST /api/admin_roles_api.php
+Content-Type: application/json
+
+{
+  "action": "delete_rol",
+  "rol_nombre": "marketing"
+}
+```
+
+**Parameters:**
+
+<ParamField path="action" type="string" required>
+  Must be `delete_rol`
+</ParamField>
+
+<ParamField path="rol_nombre" type="string" required>
+  Name of the role to delete
+</ParamField>
+
+**Success Response:**
+
+```json
+{
+  "success": true
+}
+```
+
+**Error Response (has users):**
+
+```json
+{
+  "success": false,
+  "error": "El rol tiene usuarios asignados"
+}
+```
+
+<Warning>
+  A role cannot be deleted if any users are currently assigned to it. You must reassign or deactivate those users first.
+</Warning>
+
+## Error Responses
+
+### 401 Unauthorized
+
+```json
+{
+  "success": false,
+  "error": "No autenticado"
+}
+```
+
+### 403 Forbidden
+
+```json
+{
+  "success": false,
+  "error": "Sin permisos. Su correo: user@example.com"
+}
+```
+
+### 400 Bad Request
+
+```json
+{
+  "success": false,
+  "error": "Falta rol_nombre"
+}
+```
+
+## Usage Example
+
+```php
+<?php
+session_start();
+
+// Ensure user is authenticated and admin
+if (!isset($_SESSION['token']) || $_SESSION['rol'] !== 'administrador') {
+    die('Unauthorized');
+}
+
+// Fetch all roles
+$ch = curl_init('https://cms.grupomecsa.net/api/admin_roles_api.php?action=get_roles');
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_COOKIE, session_name() . '=' . session_id());
+$response = curl_exec($ch);
+$data = json_decode($response, true);
+
+foreach ($data['roles'] as $role) {
+    echo $role['nombre'] . ': ' . $role['total'] . ' users<br>';
+}
+
+// Update permissions for 'ventas' role
+$permissions = [
+    'action' => 'save_permisos',
+    'rol_nombre' => 'ventas',
+    'permisos' => [
+        ['vista_slug' => 'dashboard', 'puede_ver' => true],
+        ['vista_slug' => 'clientes', 'puede_ver' => true],
+        ['vista_slug' => 'proyectos', 'puede_ver' => true]
+    ]
+];
+
+$ch = curl_init('https://cms.grupomecsa.net/api/admin_roles_api.php');
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_POST, true);
+curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($permissions));
+curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+curl_setopt($ch, CURLOPT_COOKIE, session_name() . '=' . session_id());
+$result = curl_exec($ch);
+?>
+```
+
+## Related
+
+- [Employee Role API](/api/endpoints/employee-role) - Update individual employee roles
+- [Authentication](/api/authentication) - Learn about admin authorization
