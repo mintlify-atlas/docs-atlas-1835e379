@@ -1,0 +1,243 @@
+---
+title: Category Management
+description: Organize content with hierarchical categories
+icon: folder-tree
+---
+
+## Overview
+
+The Categories module provides a hierarchical taxonomy system for organizing content, blog posts, clients, projects, and testimonials throughout the Grupo Mecsa CMS.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Hierarchical Structure" icon="sitemap">
+    Create parent-child relationships for nested categories
+  </Card>
+  <Card title="Multi-Purpose" icon="tags">
+    Use categories across multiple modules (content, blog, clients)
+  </Card>
+  <Card title="Blog Integration" icon="blog">
+    Mark categories specifically for blog posts
+  </Card>
+  <Card title="CRUD Operations" icon="database">
+    Full create, read, update, and delete functionality
+  </Card>
+</CardGroup>
+
+## Category Structure
+
+Each category includes:
+
+- **ID**: Auto-incrementing identifier
+- **Name**: Category display name
+- **Parent** (`id_padre`): Optional parent category for hierarchy
+- **Blog Flag** (`categoria_blog`): Boolean indicating if category is for blog posts
+
+```json
+{
+  "id": 5,
+  "name": "Web Development",
+  "id_padre": 2,
+  "categoria_blog": false,
+  "created_at": "2024-01-15T10:00:00Z"
+}
+```
+
+## Creating Categories
+
+<Steps>
+  <Step title="Navigate to Categories">
+    Access **Categorías** from the sidebar menu.
+  </Step>
+  
+  <Step title="Click 'New Category'">
+    Click the "Crear Categoría" button.
+  </Step>
+  
+  <Step title="Enter Category Details">
+    Fill in the required fields:
+    - **Name**: Category display name
+    - **Parent Category** (optional): Select from existing categories
+    - **Blog Category** (checkbox): Mark if this category is for blog posts
+  </Step>
+  
+  <Step title="Submit Form">
+    The system will generate the next ID and create the category.
+  </Step>
+</Steps>
+
+## Hierarchical Categories
+
+Categories support unlimited nesting levels:
+
+```php categorias.php
+function buildChildrenMap(array $items) {
+    $map = [];
+    foreach ($items as $it) {
+        $parent = isset($it['id_padre']) && $it['id_padre'] !== null ? $it['id_padre'] : '';
+        if (!isset($map[$parent])) $map[$parent] = [];
+        $map[$parent][] = $it;
+    }
+    // Sort alphabetically
+    foreach ($map as &$list) {
+        usort($list, function($a, $b){
+            return strcasecmp($a['name'] ?? '', $b['name'] ?? '');
+        });
+    }
+    return $map;
+}
+
+function renderOptionsRecursive($map, $parent = '', $level = 0) {
+    if (!isset($map[$parent])) return;
+    foreach ($map[$parent] as $it) {
+        $prefix = str_repeat('&nbsp;&nbsp;&nbsp;', $level);
+        echo '<option value="' . htmlspecialchars($it['id']) . '">' . 
+             $prefix . htmlspecialchars($it['name']) . '</option>';
+        renderOptionsRecursive($map, $it['id'], $level + 1);
+    }
+}
+```
+
+### Example Hierarchy
+
+```
+Services (id: 1)
+  ├── Web Development (id: 2)
+  │   ├── Frontend (id: 5)
+  │   └── Backend (id: 6)
+  └── Design (id: 3)
+      ├── UI/UX (id: 7)
+      └── Branding (id: 8)
+Industries (id: 4)
+  ├── Healthcare (id: 9)
+  └── Finance (id: 10)
+```
+
+## Blog Categories
+
+Categories can be marked specifically for blog posts:
+
+```php categorias.php
+$nuevaCategoria = [
+    'id' => $nuevoId,
+    'name' => $nombre,
+    'categoria_blog' => isset($_POST['categoria_blog']) ? true : false
+];
+```
+
+<Info>
+  Blog categories appear in the category dropdown when creating or editing blog posts.
+</Info>
+
+## Parent Category Selection
+
+When creating a category, you can optionally select a parent:
+
+```php categorias.php
+if (isset($_POST['id_padre']) && $_POST['id_padre'] !== '') {
+    $id_padre = intval($_POST['id_padre']);
+    $nuevaCategoria['id_padre'] = $id_padre;
+} else {
+    $nuevaCategoria['id_padre'] = null;
+}
+```
+
+- **No parent**: Leave dropdown empty (creates root category)
+- **With parent**: Select from hierarchical dropdown
+
+## Editing Categories
+
+<Steps>
+  <Step title="Select Category">
+    Click the edit button on the category you want to modify.
+  </Step>
+  
+  <Step title="Update Fields">
+    Modify:
+    - Category name
+    - Parent category assignment
+    - Blog flag
+  </Step>
+  
+  <Step title="Save Changes">
+    Submit the form to update the database.
+  </Step>
+</Steps>
+
+<Warning>
+  Changing a category's parent will affect the hierarchy. Verify that content using this category still makes sense after the reorganization.
+</Warning>
+
+## Deleting Categories
+
+<Warning>
+  Deleting a category that has children will orphan those child categories. Consider reassigning children before deletion.
+</Warning>
+
+<Warning>
+  Categories used by content, blog posts, clients, or projects should not be deleted without first reassigning those items.
+</Warning>
+
+## Database Table
+
+**Table Name**: `categoria-servicios`
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | integer | Primary key |
+| `name` | text | Category name |
+| `id_padre` | integer | Parent category ID (nullable) |
+| `categoria_blog` | boolean | Blog category flag |
+| `created_at` | timestamptz | Creation timestamp |
+
+## Module Integration
+
+Categories are used by:
+
+- **Content** (`contenido`) - Organize content items
+- **Blog** (`posts`) - Classify blog posts
+- **Clients** (`clientes`) - Group clients by industry/type
+- **Projects** (`Proyectos`) - Categorize project types
+- **Testimonials** (`testimoniales`) - Organize testimonials by category
+
+## Pagination
+
+```php categorias.php
+$page = intval($_GET['page'] ?? 1);
+$perPage = intval($_GET['rowsPerPage'] ?? 10);
+$offset = ($page - 1) * $perPage;
+
+$res_cat_paged = supabase_request('GET', 
+    "$table_name?select=*,categoria_blog&order=id.desc&limit=$perPage&offset=$offset"
+);
+```
+
+## Best Practices
+
+<Tip>
+  Plan your category structure before adding content. A well-organized hierarchy makes content management easier.
+</Tip>
+
+<Tip>
+  Use descriptive, concise names that clearly indicate the category's purpose.
+</Tip>
+
+<Tip>
+  Limit hierarchy depth to 3-4 levels for better usability.
+</Tip>
+
+<Tip>
+  Mark blog-specific categories with the blog flag to keep them separate from general content categories.
+</Tip>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Content" icon="file-lines" href="/modules/content">
+    Use categories in content management
+  </Card>
+  <Card title="Blog" icon="newspaper" href="/modules/blog">
+    Apply categories to blog posts
+  </Card>
+</CardGroup>

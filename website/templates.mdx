@@ -1,0 +1,111 @@
+---
+title: Template Management
+description: Create reusable page templates with HTML structure and CSS styles
+icon: th-large
+---
+
+## Overview
+
+Templates define the HTML structure and CSS styling for pages. Create reusable templates with customizable regions for flexible content management.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="HTML Structure" icon="code">
+    Define page layout with HTML
+  </Card>
+  <Card title="CSS Styling" icon="paintbrush">
+    Custom styles for each template
+  </Card>
+  <Card title="Content Regions" icon="layout">
+    Define editable areas in templates
+  </Card>
+  <Card title="Active/Inactive" icon="toggle-on">
+    Enable or disable templates
+  </Card>
+</CardGroup>
+
+## Template Structure
+
+```json
+{
+  "id": 1,
+  "name": "Standard Page",
+  "description": "Standard layout with header, content, and sidebar",
+  "html_structure": "<div class='container'>...</div>",
+  "css_styles": ".container { max-width: 1200px; }",
+  "regions": [
+    {"name": "header", "type": "text"},
+    {"name": "main_content", "type": "rich_text"},
+    {"name": "sidebar", "type": "component"}
+  ],
+  "is_active": true
+}
+```
+
+## Creating Templates
+
+<Steps>
+  <Step title="Access Templates">
+    Navigate to **Plantillas** from sidebar.
+  </Step>
+  
+  <Step title="Create Template">
+    - **Name**: Template identifier
+    - **Description**: Template purpose
+    - **HTML Structure**: Base HTML layout
+    - **CSS Styles**: Custom styles
+    - **Regions JSON**: Editable regions
+    - **Active**: Enable template
+  </Step>
+  
+  <Step title="Save Template">
+    Submit to create template.
+  </Step>
+</Steps>
+
+## HTML Structure
+
+```php templates.php
+$html_structure = trim($_POST['html_structure'] ?? '');
+$css_styles = trim($_POST['css_styles'] ?? '');
+```
+
+Define the page layout with semantic HTML.
+
+## Content Regions
+
+```php templates.php
+$regions_json = trim($_POST['regions_json'] ?? '[]');
+$regions = json_decode($regions_json, true);
+if (!is_array($regions)) $regions = [];
+
+$templateData['regions'] = $regions;
+```
+
+Regions define editable content areas in the template.
+
+## Database Table
+
+**Table**: `cms_templates`
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | integer | Primary key |
+| `name` | text | Template name |
+| `description` | text | Template description |
+| `html_structure` | text | HTML layout |
+| `css_styles` | text | CSS styles |
+| `regions` | jsonb | Editable regions |
+| `is_active` | boolean | Active status |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Pages" icon="file" href="/website/pages">
+    Use templates in pages
+  </Card>
+  <Card title="Content" icon="file-lines" href="/modules/content">
+    Manage page content
+  </Card>
+</CardGroup>

@@ -1,0 +1,129 @@
+---
+title: Media Library
+description: Upload and organize images, videos, and documents
+icon: images
+---
+
+## Overview
+
+The Media Library provides centralized storage and management for all media files. Upload images, videos, audio files, and documents with metadata and folder organization.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Multiple File Types" icon="file-circle-plus">
+    Images, videos, audio, PDFs, and documents
+  </Card>
+  <Card title="Folder Organization" icon="folder">
+    Organize media in custom folders
+  </Card>
+  <Card title="Metadata" icon="tags">
+    Alt text, captions, and tags for searchability
+  </Card>
+  <Card title="Supabase Storage" icon="database">
+    Secure cloud storage with CDN
+  </Card>
+</CardGroup>
+
+## Supported File Types
+
+```php media.php
+"allowed_mime_types" => [
+    "image/*",
+    "video/*",
+    "audio/*",
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+]
+```
+
+## Upload Process
+
+<Steps>
+  <Step title="Access Media Library">
+    Navigate to **Media Library** from sidebar.
+  </Step>
+  
+  <Step title="Select Folder">
+    Choose destination folder or create new one.
+  </Step>
+  
+  <Step title="Upload File">
+    - Select file from computer
+    - Add alt text (for images)
+    - Add caption (optional)
+    - Add tags (optional)
+  </Step>
+  
+  <Step title="Save">
+    File is uploaded to Supabase Storage.
+  </Step>
+</Steps>
+
+## File Storage
+
+```php media.php
+$bucket_name = 'media_cms';
+$storage_path = $folder_name . "/" . $filename;
+
+$res_upload = supabase_request_service('POST', 
+    "/storage/v1/object/media_cms/$storage_path", 
+    $file_content
+);
+```
+
+Files are stored in: `media_cms/[folder]/[filename]`
+
+## Image Processing
+
+```php media.php
+if ($file_type === 'image') {
+    $image_info = getimagesize($file['tmp_name']);
+    if ($image_info) {
+        $dimensions = [
+            'width' => $image_info[0], 
+            'height' => $image_info[1]
+        ];
+    }
+}
+```
+
+Automatically captures image dimensions.
+
+## Database Tables
+
+**Media Files**: `cms_media`
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | integer | Primary key |
+| `filename` | text | Original filename |
+| `storage_path` | text | Supabase path |
+| `file_type` | text | image/video/audio/document |
+| `mime_type` | text | MIME type |
+| `file_size` | integer | Size in bytes |
+| `dimensions` | jsonb | Width/height for images |
+| `alt_text` | text | Alt text |
+| `caption` | text | Caption |
+| `tags` | text | Search tags |
+| `folder_id` | integer | Folder FK |
+
+**Folders**: `cms_media_folders`
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | integer | Primary key |
+| `name` | text | Folder name |
+| `parent_id` | integer | Parent folder (nullable) |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Content" icon="file-lines" href="/modules/content">
+    Use media in content
+  </Card>
+  <Card title="Blog" icon="newspaper" href="/modules/blog">
+    Add images to blog posts
+  </Card>
+</CardGroup>

@@ -1,0 +1,59 @@
+---
+title: Menu Management
+description: Create and organize website navigation menus
+icon: bars
+---
+
+## Overview
+
+The Menus module allows you to create and manage navigation menus for your website. Define menu items, hierarchy, and links.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Hierarchical Menus" icon="sitemap">
+    Create nested menu structures
+  </Card>
+  <Card title="Link Types" icon="link">
+    Internal pages, external URLs, or anchors
+  </Card>
+  <Card title="Menu Locations" icon="location-dot">
+    Assign menus to header, footer, or sidebar
+  </Card>
+  <Card title="Order Control" icon="arrows-up-down">
+    Set display order for menu items
+  </Card>
+</CardGroup>
+
+## Menu Structure
+
+Menus contain items with:
+
+- **Label**: Display text
+- **URL/Slug**: Link target
+- **Parent**: For nested items
+- **Order**: Display position
+- **Location**: Where menu appears
+
+## Database Table
+
+**Table**: `cms_menus`
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | integer | Primary key |
+| `name` | text | Menu name |
+| `location` | text | Menu placement |
+| `items` | jsonb | Menu items array |
+| `is_active` | boolean | Active status |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Pages" icon="file" href="/website/pages">
+    Link to pages in menus
+  </Card>
+  <Card title="Templates" icon="th-large" href="/website/templates">
+    Include menus in templates
+  </Card>
+</CardGroup>

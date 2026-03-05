@@ -1,0 +1,153 @@
+---
+title: Page Management
+description: Create and manage website pages with custom templates and content
+icon: file
+---
+
+## Overview
+
+The Pages module allows you to create and manage individual website pages using customizable templates. Build complete pages with structured content, SEO metadata, and publish control.
+
+<Note>
+  Pages are different from blog posts - they're for static website content like About Us, Services, Contact pages, etc.
+</Note>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Template-Based" icon="th-large">
+    Use pre-defined templates for consistent page layouts
+  </Card>
+  <Card title="SEO Metadata" icon="search">
+    Set custom meta titles and descriptions for each page
+  </Card>
+  <Card title="Publish Control" icon="eye">
+    Publish or unpublish pages with a single toggle
+  </Card>
+  <Card title="JSON Content" icon="code">
+    Store flexible content structures in JSON format
+  </Card>
+</CardGroup>
+
+## Page Structure
+
+```json
+{
+  "id": 1,
+  "title": "About Us",
+  "slug": "about-us",
+  "template_id": 2,
+  "meta_title": "About Grupo Mecsa - Our Story",
+  "meta_description": "Learn about our company history and values",
+  "content": {
+    "sections": [
+      {"type": "hero", "title": "Our Story", "image": "about-hero.jpg"},
+      {"type": "text", "content": "<p>We are...</p>"}
+    ]
+  },
+  "is_published": true,
+  "created_at": "2024-01-15T10:00:00Z",
+  "updated_at": "2024-01-20T14:30:00Z"
+}
+```
+
+## Creating Pages
+
+<Steps>
+  <Step title="Navigate to Pages">
+    Access **Páginas** from the sidebar menu.
+  </Step>
+  
+  <Step title="Click 'New Page'">
+    Click the create page button.
+  </Step>
+  
+  <Step title="Fill Page Details">
+    - **Title**: Page name
+    - **Slug**: URL-friendly identifier
+    - **Template**: Select page template
+    - **Meta Title**: SEO title
+    - **Meta Description**: SEO description
+    - **Content JSON**: Structured content data
+    - **Published**: Check to make page live
+  </Step>
+  
+  <Step title="Save Page">
+    Submit to create the page record.
+  </Step>
+</Steps>
+
+## Templates
+
+Pages use templates from the [Templates module](/website/templates):
+
+```php pages.php
+$template_id = trim($_POST['template_id'] ?? '');
+if (!empty($template_id)) {
+    $pageData['template_id'] = $template_id;
+}
+```
+
+## SEO Metadata
+
+```php pages.php
+$pageData = [
+    "meta_title" => $meta_title ?: $title,
+    "meta_description" => $meta_description,
+    // ...
+];
+```
+
+<Tip>
+  Set unique meta titles and descriptions for better search engine optimization.
+</Tip>
+
+## Publishing Control
+
+```php pages.php
+$is_published = isset($_POST['is_published']) ? true : false;
+$pageData['is_published'] = $is_published;
+```
+
+- **Published**: Page is live on website
+- **Unpublished**: Page is draft/hidden
+
+## Exporting Pages
+
+Export published pages to static HTML:
+
+```php pages.php
+if (isset($_POST['export_all'])) {
+    $export_path = trim($_POST['export_path_all'] ?? '');
+    $pages_response = supabase_get("cms_pages?select=*&is_published=eq.true");
+    // Export each page to HTML file
+}
+```
+
+## Database Table
+
+**Table**: `cms_pages`
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | integer | Primary key |
+| `title` | text | Page title |
+| `slug` | text | URL slug |
+| `template_id` | integer | Template FK |
+| `meta_title` | text | SEO title |
+| `meta_description` | text | SEO description |
+| `content` | jsonb | Structured content |
+| `is_published` | boolean | Publish status |
+| `created_at` | timestamptz | Created date |
+| `updated_at` | timestamptz | Modified date |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Templates" icon="th-large" href="/website/templates">
+    Design page templates
+  </Card>
+  <Card title="SEO" icon="search" href="/website/seo">
+    Configure SEO settings
+  </Card>
+</CardGroup>

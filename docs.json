@@ -39,7 +39,19 @@
               "modules/projects",
               "modules/content",
               "modules/blog",
-              "modules/contacts"
+              "modules/contacts",
+              "modules/categories",
+              "modules/testimonials"
+            ]
+          },
+          {
+            "group": "Website Management",
+            "pages": [
+              "website/pages",
+              "website/templates",
+              "website/menus",
+              "website/media",
+              "website/seo"
             ]
           },
           {

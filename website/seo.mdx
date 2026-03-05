@@ -1,0 +1,91 @@
+---
+title: SEO Configuration
+description: Configure search engine optimization settings
+icon: search
+---
+
+## Overview
+
+The SEO module allows you to configure global SEO settings, manage meta tags, and optimize your website for search engines.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Meta Tags" icon="tag">
+    Set default meta titles and descriptions
+  </Card>
+  <Card title="Open Graph" icon="share-nodes">
+    Configure social media sharing metadata
+  </Card>
+  <Card title="Sitemap" icon="sitemap">
+    Generate XML sitemaps
+  </Card>
+  <Card title="Robots.txt" icon="robot">
+    Control search engine crawling
+  </Card>
+</CardGroup>
+
+## Global SEO Settings
+
+Configure default SEO values:
+
+- **Site Title**: Default page title suffix
+- **Meta Description**: Default description
+- **Keywords**: Site-wide keywords
+- **Author**: Content author
+- **Canonical URL**: Preferred domain
+
+## Page-Level SEO
+
+Each page can override global settings:
+
+- Custom meta title
+- Custom meta description
+- Custom Open Graph images
+- Canonical URL overrides
+
+<Info>
+  Page-specific SEO settings are managed in the [Pages module](/website/pages).
+</Info>
+
+## Best Practices
+
+<Tip>
+  Keep meta titles under 60 characters.
+</Tip>
+
+<Tip>
+  Write meta descriptions between 150-160 characters.
+</Tip>
+
+<Tip>
+  Use unique titles and descriptions for each page.
+</Tip>
+
+<Tip>
+  Include target keywords naturally in meta content.
+</Tip>
+
+## Database Table
+
+**Table**: `cms_seo_settings`
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | integer | Primary key |
+| `site_title` | text | Default site title |
+| `meta_description` | text | Default description |
+| `keywords` | text | Site keywords |
+| `og_image` | text | Default OG image |
+| `robots_txt` | text | Robots.txt content |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Pages" icon="file" href="/website/pages">
+    Set page-specific SEO
+  </Card>
+  <Card title="Content" icon="file-lines" href="/modules/content">
+    Optimize content for search
+  </Card>
+</CardGroup>

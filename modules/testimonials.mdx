@@ -1,0 +1,274 @@
+---
+title: Testimonials
+description: Manage customer testimonials and reviews
+icon: comments
+---
+
+## Overview
+
+The Testimonials module allows you to collect, manage, and display customer testimonials and reviews. Organize testimonials by category to showcase them across different sections of your website.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Customer Reviews" icon="star">
+    Store testimonials from clients and customers
+  </Card>
+  <Card title="Category Organization" icon="folder">
+    Organize testimonials by project type or service
+  </Card>
+  <Card title="Full Details" icon="user">
+    Capture person, company, position, and testimonial text
+  </Card>
+  <Card title="CRUD Operations" icon="database">
+    Create, view, update, and delete testimonials
+  </Card>
+</CardGroup>
+
+## Testimonial Structure
+
+Each testimonial includes:
+
+- **Category** (`categoria`): Category ID for organization
+- **Testimonial** (`testimonio`): The actual testimonial text
+- **Person** (`persona`): Name of the person giving the testimonial
+- **Company** (`empresa`): Company/client name (required)
+- **Position** (`cargo`): Person's job title or role
+- **Created At**: Submission timestamp
+
+```json
+{
+  "id": 1,
+  "categoria": 5,
+  "testimonio": "Grupo Mecsa delivered exceptional results on our website redesign. Their professionalism and attention to detail exceeded our expectations.",
+  "persona": "John Smith",
+  "empresa": "Tech Solutions Inc.",
+  "cargo": "CEO",
+  "created_at": "2024-01-20T10:00:00Z"
+}
+```
+
+## Creating Testimonials
+
+<Steps>
+  <Step title="Access Testimonials">
+    Navigate to **Testimoniales** from the sidebar menu.
+  </Step>
+  
+  <Step title="Click 'New Testimonial'">
+    Click the "Crear Testimonial" button.
+  </Step>
+  
+  <Step title="Fill Testimonial Details">
+    Required fields:
+    - **Category**: Select from hierarchical dropdown
+    - **Testimonial Text**: The testimonial content
+    - **Company**: Client/customer company name
+    
+    Optional fields:
+    - **Person**: Name of person giving testimonial
+    - **Position**: Their job title
+  </Step>
+  
+  <Step title="Submit Form">
+    The system validates and creates the testimonial record.
+  </Step>
+</Steps>
+
+## Testimonial Creation Process
+
+```php testimoniales.php
+if (isset($_POST['crearTestimonial'])) {
+    $categoria_id = isset($_POST['categoria']) ? intval($_POST['categoria']) : 0;
+    $testimonio = trim($_POST['testimonio'] ?? '');
+    $persona    = trim($_POST['persona'] ?? '');
+    $empresa    = trim($_POST['cliente'] ?? '');
+    $cargo      = trim($_POST['cargo'] ?? '');
+    
+    if ($categoria_id <= 0 || empty($testimonio) || empty($empresa)) {
+        echo "<script>alert('❌ Por favor complete todos los campos obligatorios o seleccione una categoría válida.');</script>";
+    } else {
+        $nuevoTestimonial = [
+            'categoria'  => $categoria_id,
+            'testimonio' => $testimonio,
+            'persona'    => $persona,
+            'empresa'    => $empresa,
+            'cargo'      => $cargo,
+            'created_at' => date('Y-m-d H:i:s')
+        ];
+        
+        $res_insert = supabase_request('POST', $table_name, $nuevoTestimonial, 
+            ["Prefer: return=representation"]
+        );
+        
+        if ($res_insert['http'] === 201) {
+            echo "<script>alert('✅ Testimonial creado correctamente');window.location.href='testimoniales.php';</script>";
+            exit;
+        }
+    }
+}
+```
+
+## Category Integration
+
+Testimonials are organized using the hierarchical category system:
+
+```php testimoniales.php
+// Fetch categories
+$res_cat = supabase_request('GET', "categoria-servicios?select=id,name,id_padre&order=name.asc");
+$categoria_data = ($res_cat['http'] >= 200 && $res_cat['http'] < 300 && is_array($res_cat['json'])) 
+    ? $res_cat['json'] : [];
+
+// Build category map
+$categoria_map = [];
+if (is_array($categoria_data)) {
+    foreach ($categoria_data as $c) {
+        if (isset($c['id'])) $categoria_map[$c['id']] = $c;
+    }
+}
+```
+
+### Display Category Name
+
+When displaying testimonials, resolve the category name:
+
+```php
+$cat_name = 'N/A';
+if (isset($testimonial['categoria']) && isset($categoria_map[$testimonial['categoria']])) {
+    $cat_name = $categoria_map[$testimonial['categoria']]['name'] ?? 'N/A';
+}
+```
+
+## Fetching Testimonials
+
+Testimonials are retrieved with pagination:
+
+```php testimoniales.php
+$page = intval($_GET['page'] ?? 1);
+$perPage = intval($_GET['rowsPerPage'] ?? 10);
+$offset = ($page - 1) * $perPage;
+
+$res_test = supabase_request('GET', 
+    "$table_name?select=*&order=created_at.desc&limit=$perPage&offset=$offset"
+);
+$testimoniales_data = ($res_test['http'] >= 200 && $res_test['http'] < 300 && is_array($res_test['json'])) 
+    ? $res_test['json'] : [];
+```
+
+## Testimonial Display
+
+Testimonials are typically displayed in a table or card layout:
+
+- **Company and Person**: Who gave the testimonial
+- **Position**: Their role
+- **Testimonial Text**: The review content (truncated if long)
+- **Category**: Classification
+- **Date**: When it was submitted
+- **Actions**: Edit and delete buttons
+
+## Editing Testimonials
+
+<Steps>
+  <Step title="Select Testimonial">
+    Click the edit button next to the testimonial.
+  </Step>
+  
+  <Step title="Modify Information">
+    Update any of the fields:
+    - Testimonial text
+    - Person name
+    - Company name
+    - Position
+    - Category
+  </Step>
+  
+  <Step title="Save Changes">
+    Submit the form to update the database.
+  </Step>
+</Steps>
+
+## Deleting Testimonials
+
+<Warning>
+  Deleting a testimonial is permanent and cannot be undone.
+</Warning>
+
+To delete a testimonial:
+
+1. Click the delete button
+2. Confirm the deletion
+3. Testimonial record is permanently removed
+
+## Database Table
+
+**Table Name**: `testimoniales`
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | integer | Auto-incrementing primary key |
+| `categoria` | integer | Foreign key to `categoria-servicios` |
+| `testimonio` | text | Testimonial content |
+| `persona` | text | Person's name |
+| `empresa` | text | Company name (required) |
+| `cargo` | text | Job title/position |
+| `created_at` | timestamptz | Submission timestamp |
+
+## API Endpoints
+
+- **GET** `/rest/v1/testimoniales` - List all testimonials
+- **GET** `/rest/v1/testimoniales?select=*&order=created_at.desc&limit=10&offset=0` - Paginated testimonials
+- **POST** `/rest/v1/testimoniales` - Create new testimonial
+- **PATCH** `/rest/v1/testimoniales?id=eq.{id}` - Update testimonial
+- **DELETE** `/rest/v1/testimoniales?id=eq.{id}` - Delete testimonial
+
+## Use Cases
+
+### Website Display
+
+Testimonials can be fetched and displayed on:
+
+- Homepage testimonial section
+- Service-specific pages (filtered by category)
+- Dedicated testimonials/reviews page
+- Case study pages
+
+### Filtering by Category
+
+Query testimonials for specific categories:
+
+```
+GET /rest/v1/testimoniales?categoria=eq.5&select=*
+```
+
+## Best Practices
+
+<Tip>
+  Always get written permission from clients before publishing their testimonials.
+</Tip>
+
+<Tip>
+  Include the person's full name and position for credibility.
+</Tip>
+
+<Tip>
+  Keep testimonials concise and focused - edit long testimonials for clarity.
+</Tip>
+
+<Tip>
+  Organize testimonials by service category to show relevant social proof on each service page.
+</Tip>
+
+<Tip>
+  Regularly update testimonials to keep content fresh and relevant.
+</Tip>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Categories" icon="folder-tree" href="/modules/categories">
+    Manage testimonial categories
+  </Card>
+  <Card title="Clients" icon="users" href="/modules/clients">
+    Link testimonials to clients
+  </Card>
+</CardGroup>
