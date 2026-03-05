@@ -1,0 +1,115 @@
+{
+  "projectType": "saas",
+  "projectName": "Grupo Mecsa CMS",
+  "projectDescription": "Content Management System with Supabase integration for managing users, clients, projects, emails, blog content, and more.",
+  "theme": "linden",
+  "primaryColor": "#0066CC",
+  "lightColor": "#4D94FF",
+  "darkColor": "#004C99",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Modules",
+            "pages": [
+              "modules/dashboard",
+              "modules/clients",
+              "modules/projects",
+              "modules/content",
+              "modules/blog",
+              "modules/contacts"
+            ]
+          },
+          {
+            "group": "Email Builder",
+            "pages": [
+              "email/overview",
+              "email/builder",
+              "email/components",
+              "email/templates"
+            ]
+          },
+          {
+            "group": "Human Resources",
+            "pages": [
+              "hr/employees",
+              "hr/departments",
+              "hr/vacancies",
+              "hr/applications"
+            ]
+          },
+          {
+            "group": "User Management",
+            "pages": [
+              "users/authentication",
+              "users/roles",
+              "users/permissions"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "config/supabase",
+              "config/security",
+              "config/deployment"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "API Overview",
+            "pages": [
+              "api/introduction",
+              "api/authentication"
+            ]
+          },
+          {
+            "group": "Endpoints",
+            "pages": [
+              "api/endpoints/admin-roles",
+              "api/endpoints/employee-role"
+            ]
+          },
+          {
+            "group": "PHP Classes",
+            "pages": [
+              "api/classes/supabase"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Role-based authentication (admin, comercial, proyecto, rrhh)",
+    "Visual email builder with MailChimp/Gmail compatibility",
+    "Complete CRUD operations for all modules",
+    "Supabase database and authentication integration",
+    "Client, project, and employee management",
+    "Blog and content management system",
+    "HR module with vacancies and applications",
+    "Pagination and filtering for all listings"
+  ],
+  "publicApiSurface": [
+    "Supabase::login($email, $password)",
+    "Supabase::getData($table, $token)",
+    "Supabase::insertData($table, $data, $token)",
+    "Supabase::updatePassword($token, $newPassword)",
+    "Supabase::generateRecoveryLink($email, $redirectTo)",
+    "admin_roles_api.php - Admin roles management",
+    "update_employee_role.php - Employee role updates"
+  ]
+}
